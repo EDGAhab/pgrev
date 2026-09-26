@@ -1,0 +1,8 @@
+tools/
+data/
+logs/
+*.log
+*.deb
+*.tgz
+*.tar.gz
+__pycache__/
