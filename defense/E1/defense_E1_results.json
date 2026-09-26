@@ -1,0 +1,62 @@
+{
+ "pitch_dbu": {
+  "met4": 27140.0,
+  "met5": 27200.0
+ },
+ "note_E1b": "P/2-offset same-net decoys are physically infeasible: a +P/2 decoy lands exactly on the opposite net's stripe centers (VSS grid = VDD grid + P/2), i.e. a VDD/VSS short. Not run.",
+ "E1a": {
+  "decoy_stripes": {
+   "met4": 18,
+   "met5": 18
+  },
+  "attacker_naive": {
+   "exit": 1,
+   "params": {},
+   "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+  },
+  "defender": {
+   "connectivity_components": {
+    "VSS": 1,
+    "VDD": 1
+   },
+   "dangling_vias": 0,
+   "min_spacing_met4_um": 5.185,
+   "min_spacing_met5_um": 5.2,
+   "lef_min_spacing_um": {
+    "met4": 0.3,
+    "met5": 1.6
+   },
+   "mesh_worst_drop_V": 0.02597558430484674,
+   "mesh_mean_drop_V": 0.011627146488141359,
+   "mesh_solvable": true
+  }
+ },
+ "D1b": {
+  "attacker_naive": {
+   "exit": 1,
+   "params": {},
+   "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+  },
+  "n_stripes_dropped_by_filter": 36,
+  "attacker_adaptive_viafilter": {
+   "exit": 0,
+   "params": {
+    "met4": {
+     "width": 1.6,
+     "pitch": 27.14,
+     "offset": 13.57,
+     "spacing": null
+    },
+    "met5": {
+     "width": 1.6,
+     "pitch": 27.2,
+     "offset": 13.6,
+     "spacing": null
+    },
+    "connect": "{met1 met4} {met4 met5}",
+    "starts_with": "POWER"
+   },
+   "err_tail": ""
+  }
+ }
+}

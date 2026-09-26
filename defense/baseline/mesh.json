@@ -1,0 +1,8 @@
+{
+ "solvable": true,
+ "n_nodes": 2432,
+ "n_ground": 207,
+ "worst_drop_V": 0.06689603781384755,
+ "mean_drop_V": 0.0388941062660712,
+ "disconnected_inject_nodes": 0
+}

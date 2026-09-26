@@ -1,0 +1,88 @@
+{
+ "E3a": [
+  {
+   "p": 0.1,
+   "n_stacks_dropped": 91,
+   "n_vias_deleted": 273,
+   "attacker": {
+    "exit": 0,
+    "connect": "{met1 met4} {met4 met5}",
+    "err_tail": ""
+   },
+   "defender": {
+    "connectivity": {
+     "VSS": 1,
+     "VDD": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.0952402461692336,
+    "mesh_worst_delta_pct_vs_base": 42.37053386369435,
+    "disconnected_inject_nodes": 0
+   }
+  },
+  {
+   "p": 0.3,
+   "n_stacks_dropped": 274,
+   "n_vias_deleted": 822,
+   "attacker": {
+    "exit": 0,
+    "connect": "{met1 met4} {met4 met5}",
+    "err_tail": ""
+   },
+   "defender": {
+    "connectivity": {
+     "VSS": 1,
+     "VDD": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.13922850141054888,
+    "mesh_worst_delta_pct_vs_base": 108.1266782914435,
+    "disconnected_inject_nodes": 0
+   }
+  },
+  {
+   "p": 0.5,
+   "n_stacks_dropped": 456,
+   "n_vias_deleted": 1368,
+   "attacker": {
+    "exit": 0,
+    "connect": "{met1 met4} {met4 met5}",
+    "err_tail": ""
+   },
+   "defender": {
+    "connectivity": {
+     "VSS": 1,
+     "VDD": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.3516766855193256,
+    "mesh_worst_delta_pct_vs_base": 425.70630042087214,
+    "disconnected_inject_nodes": 0
+   }
+  }
+ ],
+ "n_stacks": 912,
+ "E3b": {
+  "n_vias_deleted": 912,
+  "attacker": {
+   "exit": 0,
+   "connect": "{met4 met5}",
+   "err_tail": ""
+  },
+  "defender": {
+   "connectivity": {
+    "VSS": 49,
+    "VDD": 49
+   },
+   "dangling": 1824,
+   "mesh_solvable": true,
+   "mesh_worst_drop_V": null,
+   "mesh_worst_delta_pct_vs_base": null,
+   "disconnected_inject_nodes": 192
+  },
+  "roundtrip_projection": "mis-inferred connect {{met4 met5}} re-run through pdngen yields stripes with ZERO rail->strap via stacks (2736 vias missing vs truth geometry); strap->strap (met4-met5) vias retained. Analytic projection (same via-placement mechanism as phase-5 v_conn); no pdngen re-run performed."
+ }
+}

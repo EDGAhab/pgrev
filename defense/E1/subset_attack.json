@@ -1,0 +1,57 @@
+{
+ "VDD": {
+  "n_stripes": 19,
+  "k=9": {
+   "n_valid_AP_subsets": 3,
+   "example_first4_um": [
+    [
+     0.0,
+     27.14,
+     54.28,
+     81.42
+    ],
+    [
+     6.785,
+     33.925,
+     61.065,
+     88.205
+    ]
+   ]
+  },
+  "k=10": {
+   "n_valid_AP_subsets": 1,
+   "example_first4_um": [
+    [
+     0.0,
+     27.14,
+     54.28,
+     81.42
+    ]
+   ]
+  }
+ },
+ "VSS": {
+  "n_stripes": 18,
+  "k=9": {
+   "n_valid_AP_subsets": 2,
+   "example_first4_um": [
+    [
+     0.0,
+     27.14,
+     54.28,
+     81.42
+    ],
+    [
+     6.785,
+     33.925,
+     61.065,
+     88.205
+    ]
+   ]
+  },
+  "k=10": {
+   "n_valid_AP_subsets": 0,
+   "example_first4_um": []
+  }
+ }
+}

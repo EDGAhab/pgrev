@@ -6,3 +6,6 @@ logs/
 *.tgz
 *.tar.gz
 __pycache__/
+
+# but track defense experiment inputs/outputs
+!defense/**/data/
