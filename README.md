@@ -51,7 +51,6 @@ verified.
 | `defense/` | E1/E2/E3 defense experiments |
 | `reports/` | Phase reports (`phase-1.md` … `phase-7.md`) |
 | `paper/attack-preprint/` | Preprint LaTeX source, review report, revision log |
-| `nlnet/` | NLnet funding application draft (not submitted) |
 | `env.sh` | Pinned legacy toolchain environment |
 
 ## Reproducibility
