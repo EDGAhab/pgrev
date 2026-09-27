@@ -22,6 +22,11 @@ sky130hd/gcd 上 800 组随机 pdngen 配置：
 失败与非严格案例全部可解释（§4–§5），无"神秘失败"。主要局限是
 **边界截断导致的跨层 `starts_with` 不一致**（65/66），属反推器规范问题而非几何不可辨识。
 
+> **2026-09-27 深夜补充（§11）**：独立验证扫描（seed 7，N=630）确认：
+> 审稿人字面例 `(POWER,o)/(GROUND,o+P/2)` **0/553** 几何全等（边界 stripe 打破对称）；
+> dropout 阈值精确刻画为 met4 `o<w/2`、met5 `o<railw/2+w/2`（47/47 符合）；
+> Class P 20/20、Class S 30/30 大规模确认。
+
 ## 1. 实验设置
 
 | 项 | 取值 |
@@ -254,3 +259,57 @@ width/pitch 全对。复现了原扫描 `0346` 的现象——反推器输出合
 - 原扫描几何：`~/pgrev/data/ws2_0000`…`ws2_0799`（gitignored，大文件未进 repo）
 - 本报告：`~/pgrev/reports/rev3-ws2-randscan.md`（唯一进 git 的文件）
 - 复现脚本：scratch，已按用户要求清理，不进 repo
+
+---
+
+## 11. 独立验证扫描（seed 7，N=630，2026-09-27 深夜）
+
+为直接验证审稿人字面例（`§3` 的 D1 是 `(o+p/2) mod p` 形式，此处测**不取模**的字面形式），
+并精确刻画 dropout 阈值，另跑一批独立扫描。**不是**原扫描的重复——seed 不同（7），
+offset 范围为 `[0, 1.2×pitch]`（偶数 dbu），且每个配置附带对偶几何全等测试。
+
+| 环节 | 数量 |
+|---|---|
+| primary 配置 | 600 |
+| dbu-exact 恢复（全部参数） | 553/600 = **92.2%** |
+| infer_fail（全部为 §11.1 dropout） | 47/600 = 7.8% |
+| 定向 spacing (`s+w==p/2`) → equiv，round-trip PASS | 20/20 |
+| 高 pitch（150–300 µm）exact / unidentifiable / crash | 1 / 6 / 3 |
+| 分数 dbu 对（±0.35 dbu）几何全等 | 30/30 |
+| 审稿人字面对偶 `(¬sw, o+shift)` 几何全等 | **0/553** |
+
+单配置平均 4.1 s（含真值+对偶两次 pdngen、两次 extract、infer），2 workers 总计约 45 分钟。
+
+### 11.1 Dropout 阈值的精确刻画
+
+47/47 的 `MIXED!` 崩溃符合以下规则（无一例外）：
+
+- **pdngen 丢弃未完全落入 core 的 stripe**（下边缘 `< core_min` 即丢弃）：
+  - met4（垂直）：`offset < width/2`；
+  - met5（水平）：`offset < rail_width/2 + width/2`（因 `ref_y = core_y1 − railw/2` 在 core 之下）。
+
+阈值经二分实测：met4 在 `o=0.5µm`（下边缘 9820 < 10120）丢弃、`o=0.8µm`（下边缘恰为 10120）保留；
+met5 在中心 11430 dbu 丢弃、11440 dbu 保留（10 dbu 窗口）。
+
+这是推断器的建模缺口（未建模掉落），非根本不可辨识——给定掉落规则，真值仍是唯一全局配置。
+
+### 11.2 审稿人字面对偶的直接证伪（0/553）
+
+对 553 个 exact 配置逐一生成字面对偶 `(starts_with 翻转，offset += shift)` 并跑 `pdngen` 对比几何：
+**0 组全等**。手工解剖一例（`(POWER,o=5µm)` vs `(GROUND,o=15µm)`）：相差 2 条 wire + 169 个 via，
+差异恰为 `ref+o` 处的边界 stripe——`(POWER,o)` 恒在 core 边缘内放置该 stripe（`o≥0` 时），
+对偶的 VDD 网格平移 `P` 后丢失它。
+
+**结论**：`o≥0` 时审稿人字面例不构成等价类；`starts_with` 与 `offset` 联合可辨识。
+（`§3` 的 D1 是取模形式，另见 §3.1 的 `o<p` 条件；两者一致——边界决定一切。）
+
+### 11.3 其他
+
+- **Class P 大规模确认**：20/20 的 `spacing+width==pitch/2` 配置被推断器规范化为省略 spacing 形式，round-trip 20/20 PASS。
+- **Class S 大规模确认**：30 对 ±0.35 dbu 分数变体几何 30/30 全等。
+- **pdngen 输入验证**：`spacing < min_width` 时报 `TypeError in method 'dbu_to_microns'`（非正常 PDN 错误），
+  系错误报告路径的 SWIG bug；`width < min_width` 报正常的 `PDN-0077`。采样时已据此约束（met4 `w≥0.4µm/s≥0.3µm`，met5 `w≥1.6µm/s≥1.6µm`）。
+- **高 pitch**：单 stripe/网时 pitch 确不可辨识；推断器在部分层可辨识时正确省略（6 组），全不可辨识时崩溃（3 组，`starts_with` 为 None 触发同一断言）。
+
+本批 driver：`/tmp/rs/scan.py`（seed=7），结果 JSON `/tmp/rs/results/`（630 个），`frac_test.py`（seed=42）。
+/tmp 为 512MB tmpfs，扫描中途曾写满致 520 个结果损坏，已清理 work 目录并重跑补齐——最终 630/630 有效。
