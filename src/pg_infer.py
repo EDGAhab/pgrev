@@ -7,7 +7,26 @@ Forward model (verified against PdnGen.tcl @ f12e2f47):
 - straps: VDD/base grid at ref + offset + k*pitch; other net at
   ref + offset + shift + k*pitch, shift = pitch/2 (no spacing) or
   spacing + width. ref = (stdcell_xMin, stdcell_yMin - max_rail_width/2).
+- dropout (rev4): stripes whose lower edge protrudes >= 2 dbu past the grid
+  area edge are removed by pdngen's core-boundary blockage trim
+  (cut_blocked_areas: blockage outside core minus stdcell_plus_area, then
+  shrink/bloat trims shapes narrower than the wire width). Kept iff
+  center - width/2 >= area_edge - 1, i.e. in offset terms offset < width/2
+  drops the leading base stripe(s). Both layers follow the same rule; the
+  met5 area edge already sits railw/2 below core_y1, so railw enters only via
+  the reference point, not as an additive threshold term (rev4 bisection:
+  kept at o == w/2, dropped below; rev3-ws2 §11.1's "railw/2 + w/2" text was
+  wrong, its own 11430/11440 dbu numbers support w/2).
+- top bound: stripe k placed while center < area_far - width (tcl loop bound).
 - connect: via spans collapse into chains; each chain -> {bottom top}.
+
+Inference (rev4): the naive least-squares fit runs first and its output is kept
+verbatim on success. If it raises (e.g. MIXED starts_with from a dropped leading
+stripe, or bad-spacing from the same cause), each strap layer is re-inferred by
+searching (base_net, dropped_count k) hypotheses and keeping those whose
+dropout-inclusive forward model reproduces the observed stripe geometry
+(counts and centers within 2 dbu). Cross-layer starts_with is then resolved
+from the surviving hypotheses.
 
 Usage: python3 src/pg_infer.py --tag <tag>
 Reads data/<tag>/pg_shapes.csv, design_meta.json, floorplan.def
@@ -38,6 +57,109 @@ def ls_fit(cs):
     c0 = (sy - p * sx) / n
     resid = max(abs(c - (c0 + i * p)) for i, c in enumerate(cs))
     return p, c0, resid
+
+class DropoutFailed(Exception):
+    """No dropout-aware hypothesis reproduces the observed geometry."""
+
+# ---------------------------------------------------------------------------
+# rev4: dropout-inclusive forward model (all integer dbu)
+# ---------------------------------------------------------------------------
+def fwd_stripe_centers(ref, near, far, o, p, w, shift):
+    """Predict per-net stripe centers with pdngen placement + dropout.
+
+    ref: stripe origin (grid area near edge); near/far: area edges along the
+    stripe-normal axis; o/p/w: offset/pitch/width; shift: other-net grid shift
+    (pitch/2 default or spacing+width). Returns (base_centers, other_centers).
+    """
+    base, other = [], []
+    for lst, ph in ((base, 0), (other, shift)):
+        j = 0
+        while True:
+            c = ref + o + ph + j * p
+            if c >= far - w:      # tcl loop bound: x < area_far - width
+                break
+            if 2 * c - w >= 2 * near - 2:  # blockage trim keeps d <= 1 dbu
+                lst.append(c)
+            j += 1
+            assert j < 100000, "runaway stripe loop"
+    return base, other
+
+def fwd_validates(ref, near, far, o, p, w, shift, obs_base, obs_other):
+    """True iff the forward model reproduces observed centers (2 dbu)."""
+    pb, po = fwd_stripe_centers(ref, near, far, o, p, w, shift)
+    if len(pb) != len(obs_base) or len(po) != len(obs_other):
+        return False
+    return (all(abs(a - b) <= TOL_DBU for a, b in zip(pb, obs_base)) and
+            all(abs(a - b) <= TOL_DBU for a, b in zip(po, obs_other)))
+
+def infer_layer_dropout(lay, obs, width, ref, near, far, power, ground):
+    """Dropout-aware per-layer inference.
+
+    obs: {net: sorted [centers]} (integer dbu). Searches (base_net, k) with
+    k = number of dropped leading base-grid stripes; validates each candidate
+    with the dropout-inclusive forward model. Returns (hyps, pitch, width)
+    with hyps ordered smallest-k first per base net, or None when pitch is
+    unidentifiable (single surviving stripe per net). Raises DropoutFailed.
+    """
+    nets = sorted(obs)
+    assert len(nets) >= 1
+    # integer centers: observed boxes are integer dbu; LS arithmetic below
+    # needs ints for exact comparison with the tcl forward model
+    obs = {n: [int(round(c)) for c in cs] for n, cs in obs.items()}
+    pitches = {}
+    for n in nets:
+        cs = obs[n]
+        if len(cs) > 1:
+            p_est, _c0_est, resid = ls_fit(cs)
+            assert resid <= TOL_DBU, (
+                f"non-uniform pitch {lay} {n}: LS pitch {p_est:.1f} dbu, "
+                f"max residual {resid:.1f} dbu > {TOL_DBU} dbu")
+            pitches[n] = int(round(p_est))
+    pitch_vals = [pitches[n] for n in nets if n in pitches]
+    if not pitch_vals:
+        return None  # single stripe per net -> pitch NOT identifiable
+    pitch = Counter(pitch_vals).most_common(1)[0][0]
+    by_first = sorted(nets, key=lambda n: obs[n][0])
+    hyps = []
+    for base in by_first:
+        others = [n for n in nets if n != base]
+        other = others[0] if others else None
+        if other is None:
+            shift, spacing = 0, None
+        else:
+            shift = (obs[other][0] - obs[base][0]) % pitch
+            # Default-vs-explicit spacing must be decided EXACTLY (integer dbu).
+            # The tcl default is integer pitch//2; an observed shift equal to
+            # that is indistinguishable from explicit spacing+width == pitch//2,
+            # and emitting the default reproduces it exactly.  A tolerance here
+            # (e.g. |shift - p/2| <= 2) would collapse a genuine explicit shift
+            # like 7469 (vs pitch//2 = 7468) into the default and silently move
+            # every other-net stripe by 1 dbu (half-integer truncation).
+            if shift == pitch // 2:
+                spacing = None  # default half-pitch shift, no spacing key
+            else:
+                spacing = shift - width
+                if spacing <= 0:
+                    continue  # not expressible with positive spacing
+        kmax = (obs[base][0] - ref + TOL_DBU) // pitch
+        for k in range(max(kmax, -1) + 1):
+            o_cand = obs[base][0] - k * pitch - ref
+            if o_cand < -TOL_DBU:
+                continue
+            if fwd_validates(ref, near, far, o_cand, pitch, width, shift,
+                             obs[base], obs[other] if other else []):
+                hyps.append({"k": k, "base": base, "o": o_cand,
+                             "spacing": spacing, "shift": shift})
+                # NOTE: no `break` here on purpose. A larger k with o-k*p can
+                # also validate and be geometrically identical to a smaller k
+                # (the (k,o) ≡ (k+1,o-p) wrap duality when o-p in [0,w/2)).
+                # Keeping all lets the global enumeration count the genuine
+                # ambiguity instead of silently collapsing it.
+    if not hyps:
+        raise DropoutFailed(
+            f"{lay}: no (base_net, dropped_k) hypothesis reproduces "
+            f"the observed stripe geometry")
+    return hyps, pitch, width
 
 def main():
     ap = argparse.ArgumentParser()
@@ -88,6 +210,10 @@ def main():
     core = meta["core"]
     ref_x = core[0]
     ref_y = core[1] - max_rail_w / 2
+    # grid area edges (dropout reference); area = stdcell_plus_area
+    area = {"near_x": core[0], "far_x": core[2],
+            "near_y": core[1] - max_rail_w / 2,
+            "far_y": core[3] + max_rail_w / 2}
 
     # ---- straps ----
     straps = [s for s in wires if s["shape"] == "STRIPE"]
@@ -97,20 +223,42 @@ def main():
                    for s in straps if s["layer"] == lay)
     strap_layers = sorted(set(s["layer"] for s in straps),
                           key=lambda l: (0 if layer_dir(l) == "V" else 1, layer_min(l)))
-    strap_block = []
-    starts_with = None
+    # per-layer observations shared by both inference paths
+    layer_obs = {}
+    layer_width = {}
     for lay in strap_layers:
         by_net = defaultdict(list)
         for s in straps:
             if s["layer"] == lay:
                 c = s["cx"] if s["dir"] == "V" else s["cy"]
                 by_net[s["net"]].append(c)
-        nets = sorted(by_net)
+        obs = {n: sorted(cs) for n, cs in by_net.items()}
+        layer_obs[lay] = obs
+        layer_width[lay] = Counter(
+            s["width"] for s in straps if s["layer"] == lay).most_common(1)[0][0]
+
+    def layer_ref(lay):
+        # integer dbu: rail widths are even dbu in practice; int() keeps the
+        # dropout arithmetic exact (matches tcl integer comparisons)
+        if layer_dir(lay) == "V":
+            return (int(ref_x), int(area["near_x"]), int(area["far_x"]))
+        return (int(round(ref_y)), int(round(area["near_y"])),
+                int(round(area["far_y"])))
+
+    def infer_layer_naive(lay):
+        """Original (rev2) per-layer inference, verbatim.
+
+        Returns (spec_params, sw): spec_params = dict(width/pitch/offset_dbu/
+        spacing_dbu|None), sw = "POWER"/"GROUND". Returns None when pitch is
+        unidentifiable. Raises AssertionError on inconsistency.
+        """
+        obs = layer_obs[lay]
+        nets = sorted(obs)
         assert len(nets) >= 1
-        width = Counter(s["width"] for s in straps if s["layer"] == lay).most_common(1)[0][0]
+        width = layer_width[lay]
         pitches, firsts = {}, {}
         for n in nets:
-            cs = sorted(by_net[n])
+            cs = obs[n]
             firsts[n] = cs[0]
             if len(cs) > 1:
                 p_est, _c0_est, resid = ls_fit(cs)
@@ -122,18 +270,16 @@ def main():
         pitch = Counter(pitches.values()).most_common(1)[0][0] if pitches else None
         if pitch is None:
             notes.append(f"{lay}: single strap per net -> pitch NOT identifiable")
-            continue
+            return None
         base_net = min(nets, key=lambda n: firsts[n])
         other_net = [n for n in nets if n != base_net]
         base_is_power = base_net in power
         sw = "POWER" if base_is_power else "GROUND"
-        starts_with = sw if starts_with in (None, sw) else "MIXED!"
-        lay_dir = layer_dir(lay)
-        r = ref_x if lay_dir == "V" else ref_y
+        r = ref_x if layer_dir(lay) == "V" else ref_y
         c0 = firsts[base_net]
         offset_dbu = c0 - r
         assert offset_dbu >= -TOL_DBU, f"negative offset {lay}"
-        spec = f"{lay} {{width {um(width, dbu_per_um):.3f} pitch {um(pitch, dbu_per_um):.3f} offset {um(offset_dbu, dbu_per_um):.3f}"
+        spacing_dbu = None
         if other_net:
             o = other_net[0]
             shift = firsts[o] - firsts[base_net]
@@ -142,15 +288,120 @@ def main():
             else:
                 spacing_dbu = shift - width
                 assert spacing_dbu > 0, f"bad spacing {lay}"
-                spec += f" spacing {um(spacing_dbu, dbu_per_um):.3f}"
                 notes.append(f"{lay}: {o} shifted by spacing+width ({um(spacing_dbu, dbu_per_um):.3f}um), not pitch/2")
             # verify other net's grid matches
             for n in other_net:
                 assert abs((firsts[n] - firsts[base_net]) - shift) <= TOL_DBU
                 if n in pitches: assert abs(pitches[n] - pitch) <= TOL_DBU
-        spec += "}"
-        strap_block.append("        " + spec)
-    assert starts_with not in (None, "MIXED!"), "inconsistent starts_with across layers"
+        return ({"width": width, "pitch": pitch, "offset_dbu": offset_dbu,
+                 "spacing_dbu": spacing_dbu}, sw)
+
+    strap_block = []
+    starts_with = None
+    naive_err = None
+    try:
+        for lay in strap_layers:
+            r = infer_layer_naive(lay)
+            if r is None:
+                continue
+            params, sw = r
+            starts_with = sw if starts_with in (None, sw) else "MIXED!"
+            spec = f"{lay} {{width {um(params['width'], dbu_per_um):.3f} pitch {um(params['pitch'], dbu_per_um):.3f} offset {um(params['offset_dbu'], dbu_per_um):.3f}"
+            if params["spacing_dbu"] is not None:
+                spec += f" spacing {um(params['spacing_dbu'], dbu_per_um):.3f}"
+            spec += "}"
+            strap_block.append("        " + spec)
+        assert starts_with not in (None, "MIXED!"), "inconsistent starts_with across layers"
+    except AssertionError as e:
+        naive_err = e
+    except DropoutFailed as e:  # not raised by naive path; defensive
+        naive_err = e
+
+    if naive_err is not None:
+        # ---- rev4 dropout-aware correction: re-infer every strap layer ----
+        notes.append(f"naive inference failed ({naive_err}); "
+                     f"dropout-aware correction engaged")
+        strap_block = []
+        layer_hyps = {}
+        for lay in strap_layers:
+            ref, near, far = layer_ref(lay)
+            try:
+                r = infer_layer_dropout(lay, layer_obs[lay], layer_width[lay],
+                                        ref, near, far, power, ground)
+            except (AssertionError, DropoutFailed) as e:
+                print(f"DROPOUT_CORRECTION_FAILED {lay}: {e}", file=sys.stderr)
+                sys.exit(1)
+            if r is None:
+                notes.append(f"{lay}: single strap per net -> pitch NOT identifiable")
+                continue
+            hyps, pitch, width = r
+            layer_hyps[lay] = (hyps, pitch)
+        if not layer_hyps:
+            print("UNIDENTIFIABLE: no strap layer yielded a pitch",
+                  file=sys.stderr)
+            sys.exit(1)
+        def hyp_sw(h):
+            if h["base"] in power: return "POWER"
+            if h["base"] in ground: return "GROUND"
+            return None
+        # global starts_with: prefer values already pinned by unambiguous
+        # layers, then POWER, then GROUND (deterministic)
+        order = []
+        for lay, (hyps, _pitch) in layer_hyps.items():
+            sws = {hyp_sw(h) for h in hyps} - {None}
+            if len(sws) == 1:
+                s = next(iter(sws))
+                if s not in order: order.append(s)
+        for s in ("POWER", "GROUND"):
+            if s not in order: order.append(s)
+        # enumerate ALL globally-consistent (starts_with, per-layer choice)
+        # combos: more than one means a genuine geometric ambiguity (the
+        # chosen config reproduces the geometry exactly but the parameters
+        # are not uniquely identifiable)
+        all_combos = []
+        for gsw in ("POWER", "GROUND"):
+            def rec(lays, acc, gsw=gsw):
+                if not lays:
+                    all_combos.append((gsw, dict(acc)))
+                    return
+                lay = lays[0]
+                hyps, _pitch = layer_hyps[lay]
+                for h in hyps:
+                    if hyp_sw(h) in (gsw, None):
+                        acc[lay] = h
+                        rec(lays[1:], acc)
+                        del acc[lay]
+            rec([l for l in strap_layers if l in layer_hyps], {})
+        if not all_combos:
+            print("DROPOUT_CORRECTION_FAILED: no consistent starts_with",
+                  file=sys.stderr)
+            sys.exit(1)
+        # deterministic pick: pinned-by-unambiguous first, then POWER
+        def combo_rank(c):
+            return order.index(c[0]) if c[0] in order else 99
+        all_combos.sort(key=combo_rank)
+        starts_with, choice = all_combos[0]
+        if len(all_combos) > 1:
+            notes.append(
+                f"AMBIGUOUS: {len(all_combos)} globally-consistent hypotheses "
+                f"reproduce the observed geometry exactly; selected "
+                f"starts_with={starts_with} (deterministic tie-break). "
+                f"Parameters beyond geometry are not uniquely identifiable.")
+        for lay in strap_layers:
+            if lay not in choice:
+                continue
+            h = choice[lay]
+            _hyps, pitch = layer_hyps[lay]
+            width = layer_width[lay]
+            spec = f"{lay} {{width {um(width, dbu_per_um):.3f} pitch {um(pitch, dbu_per_um):.3f} offset {um(h['o'], dbu_per_um):.3f}"
+            if h["spacing"] is not None:
+                spec += f" spacing {um(h['spacing'], dbu_per_um):.3f}"
+            spec += "}"
+            strap_block.append("        " + spec)
+            notes.append(
+                f"{lay}: dropout-aware correction (naive: {naive_err}); "
+                f"base net {h['base']}, {h['k']} leading stripe(s) dropped, "
+                f"forward model reproduces observed geometry within {TOL_DBU} dbu")
     out[sw_idx] = f'set ::stripes_start_with "{starts_with}" ;'
 
     # ---- connect: collapse via-span chains ----
