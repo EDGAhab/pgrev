@@ -1,0 +1,56 @@
+{
+ "gds_text_records": 6,
+ "gds_text_leaked_names": [
+  "VDD",
+  "VSS"
+ ],
+ "gds_text_stripped": true,
+ "n_polys": 3040,
+ "polys_per_layer": {
+  "met1": 96,
+  "met1-met2": 912,
+  "met2-met3": 912,
+  "met3-met4": 912,
+  "met4": 19,
+  "met4-met5": 171,
+  "met5": 18
+ },
+ "gds_vs_truth_missing": 0,
+ "gds_vs_truth_extra": 0,
+ "n_components": 2,
+ "component_sizes": [
+  1597,
+  1443
+ ],
+ "component_purity": "2/2",
+ "pg_identification_top2_correct": true,
+ "n_rails_found": 96,
+ "polarity_rails_unanimous": "96/96",
+ "polarity_matches_truth": true,
+ "stripes_start_with_net": "VDD",
+ "classification": "133/133 correct, 0 misclassified",
+ "via_spans": {
+  "met1-met2": {
+   "n": 912,
+   "overlap_met1": 912,
+   "overlap_met2": 0
+  },
+  "met2-met3": {
+   "n": 912,
+   "overlap_met2": 0,
+   "overlap_met3": 0
+  },
+  "met3-met4": {
+   "n": 912,
+   "overlap_met3": 0,
+   "overlap_met4": 912
+  },
+  "met4-met5": {
+   "n": 171,
+   "overlap_met4": 171,
+   "overlap_met5": 171
+  }
+ },
+ "via_name_recovery": "2907/2907",
+ "reconstructed_vs_truth": "3040 rows; only_in_recon=0, only_in_truth=0"
+}
