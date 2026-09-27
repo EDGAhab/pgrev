@@ -1,0 +1,108 @@
+{
+ "check1": [
+  {
+   "net": "VDD",
+   "k": 9,
+   "n_stripes": 9,
+   "label": "truncated true-grid subset (dropped true idx [9])",
+   "verdict": "ILLEGAL",
+   "detail": "no offset reproduces exactly (direct o=13570.0 gives 10 stripes)"
+  },
+  {
+   "net": "VDD",
+   "k": 9,
+   "n_stripes": 9,
+   "label": "decoy grid (full)",
+   "verdict": "LEGAL",
+   "detail": "reproduced by offset=-6785.0, 20355.0 (m=-1,0)"
+  },
+  {
+   "net": "VDD",
+   "k": 9,
+   "n_stripes": 9,
+   "label": "truncated true-grid subset (dropped true idx [0])",
+   "verdict": "LEGAL",
+   "detail": "reproduced by offset=40710.0 (m=0)"
+  },
+  {
+   "net": "VDD",
+   "k": 10,
+   "n_stripes": 10,
+   "label": "true grid (ground truth)",
+   "verdict": "LEGAL",
+   "detail": "reproduced by offset=-13570.0, 13570.0 (m=-1,0)"
+  },
+  {
+   "net": "VSS",
+   "k": 9,
+   "n_stripes": 9,
+   "label": "true grid (ground truth)",
+   "verdict": "LEGAL",
+   "detail": "reproduced by offset=0.0, 27140.0 (m=-1,0)"
+  },
+  {
+   "net": "VSS",
+   "k": 9,
+   "n_stripes": 9,
+   "label": "decoy grid (full)",
+   "verdict": "LEGAL",
+   "detail": "reproduced by offset=33925.0 (m=0)"
+  }
+ ],
+ "check1_summary": {
+  "n_total": 6,
+  "n_legal": 5,
+  "n_illegal": 1
+ },
+ "check1b_pairs": [
+  {
+   "vdd": "decoy grid (full)",
+   "vss": "true grid (ground truth)",
+   "consistent": false
+  },
+  {
+   "vdd": "decoy grid (full)",
+   "vss": "decoy grid (full)",
+   "consistent": true
+  },
+  {
+   "vdd": "truncated true-grid subset (dropped true idx [0])",
+   "vss": "true grid (ground truth)",
+   "consistent": false
+  },
+  {
+   "vdd": "truncated true-grid subset (dropped true idx [0])",
+   "vss": "decoy grid (full)",
+   "consistent": false
+  },
+  {
+   "vdd": "true grid (ground truth)",
+   "vss": "true grid (ground truth)",
+   "consistent": true
+  },
+  {
+   "vdd": "true grid (ground truth)",
+   "vss": "decoy grid (full)",
+   "consistent": false
+  }
+ ],
+ "check1b_n_consistent": 2,
+ "check2_pooled": {
+  "true4xtrue5": {
+   "cross": 171,
+   "via": 171
+  },
+  "true4xdecoy5": {
+   "cross": 171,
+   "via": 171
+  },
+  "decoy4xtrue5": {
+   "cross": 162,
+   "via": 162
+  },
+  "decoy4xdecoy5": {
+   "cross": 162,
+   "via": 162
+  }
+ }
+}
