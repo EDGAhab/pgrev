@@ -119,7 +119,74 @@ sky130hd LEF with current generator code. Defense experiments (E1–E3)
 remain legacy-version only. Abstract + Conclusion updated with one
 sentence each. All numbers taken verbatim from the Phase 7 report.
 
-## Build (2026-09-27)
+## Fix 12 — Second-round review revision (2026-09-27)
+
+Source: `review-report-v2.md` (Major Revision / weak-reject verdict, 6
+major + 6 minor issues, 3 author questions). Numbers taken only from
+`reports/rev2-exp1-crop.md`, `rev2-exp2-multiseq.md`,
+`rev2-exp3-ir-baseline.md`, `rev2-issue3-connect.md`,
+`rev2-b3-robust-fit.md`, and verified entries in
+`related-work-candidates.md`. Writing revision only; no new numbers
+invented.
+
+- **Issue 1 (threat model):** motivation narrowed — regeneration-under-
+  modification (Trojan/re-spin/derivative) promoted to first reason;
+  partial observation demoted to second, qualified reason. New §5.3
+  "Partial-region extrapolation" (labeled ODB crops on sky130hd/gcd):
+  20%-width strip and ~10%-area square → all parameters exact, full-die
+  regeneration PASS; thin 10% strip → FAIL (1 VDD / 0 VSS met4 in-window,
+  information deficit not numerical error). Stated rule: recovery depends
+  on crop shape and ≥2–3 period instances per (layer, net); unlabeled
+  imaged polygons still future work. Abstract untouched (never claimed
+  partial imaging); contribution 3 extended.
+- **Issue 2 (injectivity wording):** "injective" → "empirically
+  identifiable" everywhere (abstract, §6, conclusion, contributions);
+  "provably dead" kept only for `rails_start_with` (zero reads in
+  PdnGen.tcl); rail pitch/offset → "dead by code inspection and case
+  verification". §6 gains 4th degenerate regime: µm-to-dbu rounding
+  collisions; closing paragraph admits non-proof status and untested
+  joint offset≥pitch/2 × stripes_start_with transforms.
+- **Issue 3 (connect semantics):** §2 vias/connect paragraph rewritten —
+  connect pairs may span multiple routing layers; success decided by
+  geometric overlap at crossings (orthogonal H×V succeeds; parallel
+  narrow-rail vs wide-stripe triggers PDN-0042 skip-all), not "adjacency".
+  asap7 {M1 M5} = cross-layer evidence (4×106-via stack); sky130
+  {met1 met5} 0-via = parallel-overlap counterexample. §3 connect rule
+  made precise: lowest endpoint rail → first strap endpoint above;
+  intermediates are not endpoints (M2 in asap7 chain). "Only adjacent
+  layers connect" claim removed.
+- **Issue 4 (D3 reframe):** E1 attacker-side rewritten — naive now fails
+  loudly under LS fit (residual 3571.1 dbu > 2 dbu gate); new paragraph
+  "Adaptive attacker: multi-sequence inference" (k=2 recovers all 73
+  stripe centers exactly; met4 P=27.140, met5 P=27.200 exact; phases at
+  truth and truth+P/4). Honest verdict: D3 protects intent attribution,
+  not geometry cloning. Footnote: multi-sequence bundle ≠ single legacy
+  pdngen config (2nd specify_grid stdcell silently ignored; sequential
+  runs ripup; E1a geometry is geometrically constructed). Subset-
+  enumeration paragraph reframed as "What D3 does protect: intent
+  attribution". Abstract + conclusion reworded to match.
+- **Issue 5 (IR baseline):** "-61.2% negative cost" framing withdrawn.
+  New three-way table (same mesh model): baseline 133/2907,
+  66.90/38.89 mV/A worst/mean; E1a 169/5994, 25.98/11.63; P/2 equal-metal
+  169/5994, 18,918.4 µm stripe length (identical to E1a), 24.51/11.54.
+  Verdict: -61.2% fully explained by doubled metal; D3 vs equal-metal
+  +6.0% worst / +0.8% mean; real price = 2× blockage, 2.06× vias.
+  Absolute mV/A values reported, not only percentages. Summary-table D3
+  row updated.
+- **Issue 6 (scale):** §7.5 now states 3 distinct configs
+  (sky130hd/gcd+aes share), no core ring/macro; commercial-generator
+  (Innovus addStripe) port = future work.
+- **Minor:** §4 Yosys note (synthesis only; PDN independent of Yosys
+  version); 133/2907 vs 134/2917 explained (stripe-offset datum change:
+  legacy −max_rail_width/2 → current core-area edge); §3 straps now
+  least-squares + 2-dbu residual gate (per rev2-b3-robust-fit; 4/4
+  round-trips still PASS, E1a naive still fails loudly); related work
+  expanded with 10 verified entries (botero2021, rajarathnam2020,
+  chen2015, wang2013, mosavirik2023, rajendran2014, imeson2013,
+  rajendran2012, kahng2001, ziener2008); "no PDN-obfuscation prior art"
+  phrased as systematic-search finding, not first-claim proof.
+
+## Build (2026-09-27, rev2)
 - Compiled with `~/bin/tectonic -X compile paper.tex --outdir build`:
   exit 0, warnings only (2 pre-existing cosmetic overfull hboxes in the
   §5.2 variant-experiments paragraph and the §7.5 summary table — not

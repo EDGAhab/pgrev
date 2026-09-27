@@ -36,19 +36,23 @@ geometry wire-for-wire and via-for-via (4/4 designs; up to 318 wires and
 16,403 vias per design).  A re-run on current OpenROAD (HEAD
 \texttt{80c6be9}, September 2026) with the new C++ PDN API confirms the
 mechanism is not a legacy artifact: 3,051/3,051 shapes (134 wires $+$
-2,917 vias) recovered exactly on \texttt{sky130hd/gcd}.  An identifiability analysis shows the
-parameter-to-geometry mapping to be injective on the live-parameter
-quotient space: only provably dead parameters (e.g.\
-\texttt{rails\_start\_with}, which is never read in
-\texttt{PdnGen.tcl}) are unrecoverable, and three explicitly
-characterized degenerate regimes---including a zero-yield
-\texttt{connect} pair geometrically equivalent to omitting it---are the
-only non-trivial equivalence cases.  We then design and evaluate anti-RE PDN
+2,917 vias) recovered exactly on \texttt{sky130hd/gcd}.  An identifiability analysis shows the parameter-to-geometry mapping to be
+empirically identifiable on the live-parameter quotient space:
+\texttt{rails\_start\_with} is provably dead (never read in
+\texttt{PdnGen.tcl}); rail pitch/offset are dead by code inspection plus
+case verification; and four explicitly characterized degenerate
+regimes---including a zero-yield \texttt{connect} pair geometrically
+equivalent to omitting it, and $\mu$m-to-dbu rounding collisions---are
+the only non-trivial equivalence cases observed.  We then design and evaluate anti-RE PDN
 obfuscations: an interleaved decoy grid (36 extra via'd stripes at
-$+P/4$) crashes the naive inference while \emph{improving} IR drop by
-61.2\%, and leaves an adaptive subset-enumeration attacker with two
-exactly equivalent 9-stripe VSS grids---a genuine two-way intent
-ambiguity; pitch jitter breaks naive inference at $\geq 2\%$ but
+$+P/4$) crashes the naive inference, but an adaptive two-sequence
+attacker recovers all 73 stripe centers exactly---so the defense protects
+\emph{intent attribution} (two exactly equivalent 9-stripe VSS grids
+remain indistinguishable as to which is original), not geometry cloning;
+the $-61.2\%$ IR improvement over baseline is fully explained by doubled
+metal (against an equal-metal $P/2$ baseline the decoy grid is $+6.0\%$
+worse in worst-case drop, at $2\times$ routing blockage and $2.06\times$
+via count); pitch jitter breaks naive inference at $\geq 2\%$ but
 only degrades precision (a robust least-squares attacker recovers pitch
 within 1.2\% at 15\% jitter); via dropout is falsified as a defense
 (\texttt{connect} inference unaffected at up to 50\% removal while IR
@@ -63,7 +67,7 @@ is deliberately engineered not to.
 
 Hardware reverse engineering (RE) classically proceeds from silicon
 upward: delayering, imaging, circuit extraction, and netlist
-reconstruction~\cite{torrance2009,quadir2016,fyrbiak2017}.  Most RE
+reconstruction~\cite{torrance2009,quadir2016,fyrbiak2017,botero2021}.  Most RE
 research targets logic functionality, while the power delivery network is
 treated as background infrastructure.  We show that the PDN deserves
 attention in its own right: the \emph{rules} that generate it can be
@@ -87,17 +91,22 @@ inference could run; that harder, label-free setting is not evaluated
 here, and we list the unlabeled-polygon ablation as explicit future work.
 
 The spec matters even though the geometry can always be cloned, for two
-reasons.  First, \emph{partial observation}: an attacker who images only
-a sample region of a die---because full-stack delayering is expensive and
-destructive---can recover the generation rules from that region and then
-predict the PDN across the entire chip, including areas never imaged.
-Static geometry cloning cannot extrapolate beyond what was observed.
-Second, \emph{regeneration under modification}: any post-silicon
+reasons.  First, \emph{regeneration under modification}: any post-silicon
 tampering that must keep the power grid consistent---inserting a hardware
 Trojan, re-spinning a block, or porting the layout to a derivative
 design---needs the generation rules, not a frozen snapshot of shapes.
 The spec is the portable, reusable form of the design IP; the geometry is
-one instantiation of it.
+one instantiation of it.  Second, and more narrowly, \emph{partial
+observation}: an attacker who recovers the rules from a sampled die
+region can predict the PDN across the full chip, including areas never
+imaged---something static geometry cloning cannot do.  We quantify the
+limits of this in \S\ref{sec:crop}: on sky130hd/gcd, a 20\%-area strip
+crop or a 10\%-area square crop recovers every parameter exactly and
+regenerates the full die, while a thin 10\% strip fails for lack of met4
+samples.  Recovery from a region therefore depends on the crop shape and
+on each (layer, net) presenting enough period instances; and we stress
+these are labeled-database crops---the harder label-free imaged-polygon
+setting remains future work.
 
 We instantiate this attack against OpenROAD's \texttt{pdngen}, the
 power-grid generator of the open-source OpenROAD
@@ -118,11 +127,13 @@ geometry-determining grid specification from extracted PG geometry.
 \item Exact recovery on 4 designs $\times$ 3 PDKs (every
 geometry-determining parameter recovered exactly), with round-trip
 verification:
-re-generated geometry matches the original wire-for-wire and via-for-via.
+re-generated geometry matches the original wire-for-wire and via-for-via,
+plus a partial-region study quantifying when a local crop suffices for
+full-die regeneration.
 \item An honest identifiability analysis: the parameter-to-geometry map
-is injective on the live-parameter quotient space, with three explicitly
-characterized degenerate regimes; a plausible equivalence hypothesis is
-experimentally falsified.
+is empirically identifiable on the live-parameter quotient space, with four
+explicitly characterized degenerate regimes; a plausible equivalence
+hypothesis is experimentally falsified.
 \item An evaluation of anti-RE PDN obfuscations (interleaved decoy grids,
 pitch jitter, via dropout) with attacker/defender-side measurements,
 including falsified defenses and honestly reported negative controls.
@@ -174,13 +185,18 @@ and first VDD met5 stripe center $24240 = (10880 - 240) + 13600$ dbu,
 where $240$ is half the $480$\,dbu rail width.
 
 \paragraph{Vias and \texttt{connect}.} \texttt{connect} declares logical
-layer pairs, e.g.\ \texttt{\{\{met1 met4\} \{met4 met5\}\}}.  \texttt{pdngen}
-realizes each pair as a via stack spanning all intermediate layers, placed
-at same-net wire crossings.  A critical, non-obvious behavior: \texttt{pdngen}'s
-via insertion only succeeds for \texttt{connect} pairs between
-\emph{adjacent} grid layers; a spanning pair such as \texttt{\{met1 met5\}}
-produces \emph{zero} vias (every attempt skipped with PDN-0042 warnings).
-We return to this in Section~\ref{sec:ident}.
+layer pairs, e.g.\ \texttt{\{\{met1 met4\} \{met4 met5\}\}}.
+\texttt{pdngen} realizes each pair as a via stack spanning all
+intermediate layers, placed at same-net wire crossings: a pair may span
+several routing layers---asap7's \texttt{\{M1 M5\}} generates a
+continuous four-segment stack (M1$\to$M2$\to$M3$\to$M4$\to$M5, 106 vias
+per segment).  Whether insertion succeeds is decided not by layer
+``adjacency'' but by the geometric overlap of the two endpoint grids at
+each crossing: orthogonal (H$\times$V) crossings succeed, while a
+parallel narrow rail under a wide stripe, whose overlap cannot cover the
+stripe's full width, is skipped entirely with PDN-0042 warnings---which
+is why sky130hd's \texttt{\{met1 met5\}} (both horizontal) yields
+\emph{zero} vias.  We return to this in Section~\ref{sec:ident}.
 
 \section{Inference Algorithm}
 
@@ -198,8 +214,10 @@ the modal cross-dimension.  Rail positions are row-determined and need no
 further parameters.
 
 \paragraph{Straps.} \texttt{STRIPE} wires are grouped by (net, layer).
-Per layer and net, sorted stripe centers must form an arithmetic sequence
-(asserted within 2\,dbu); pitch is the modal successive difference.  The
+Per layer and net, sorted stripe centers are fit by least squares to
+$c_i = c_0 + i\cdot p$ (pitch $p$ rounded to the unit grid; residual gate
+2\,dbu, which rejects genuinely multimodal inputs loudly rather than
+silently accepting them).  The
 net with the smaller first center is the base grid, fixing
 \texttt{stripes\_start\_with} (POWER or GROUND).  Offset is
 $(\text{first base center} - \mathit{ref})$ with $\mathit{ref}$ from
@@ -208,10 +226,14 @@ Eq.~(1).  The VSS shift is compared against $\mathit{pitch}/2$: equality
 \mathit{width}$.
 
 \paragraph{\texttt{connect}.} Via (bottom, top) spans are chained
-bottom-to-top through shared layers.  Within each chain, the lowest rail
-layer paired with the first strap layer above it yields the rail$\to$strap
-pair; consecutive strap layers within the chain yield strap$\to$strap
-pairs.
+bottom-to-top through shared layers.  Within each chain, the lowest
+\emph{endpoint} rail layer paired with the first strap endpoint above it
+yields the rail$\to$strap pair; consecutive strap endpoints within the
+chain yield strap$\to$strap pairs.  Intermediate layers of a stack are not
+endpoints: in asap7 the chain M1$\to$M2$\to$M3$\to$M4$\to$M5$\to$M6
+collapses to \texttt{\{\{M1 M5\} \{M5 M6\}\}}---M2, though a rail layer,
+is a middle layer of the M1$\to$M5 stack, so the inferred pair is
+M1$\to$M5, matching ground truth.
 
 The output is a minimal \texttt{pdngen::specify\_grid} configuration
 containing only geometry-determining parameters; dead parameters
@@ -220,9 +242,10 @@ are omitted.
 
 \section{Experimental Setup}
 
-We built OpenROAD (\texttt{f12e2f47}, March 2022) and Yosys 0.69 via
-conda, with OpenROAD-flow-scripts at commit \texttt{96eb3de} (April
-2022).  Four designs were run through floorplan and PDN generation:
+We built OpenROAD (\texttt{f12e2f47}, March 2022) and Yosys 0.69
+(oss-cad-suite) via conda, with OpenROAD-flow-scripts at commit
+\texttt{96eb3de} (April 2022).  Yosys is used only for synthesis; the PDN
+geometry under study is independent of the Yosys version.  Four designs were run through floorplan and PDN generation:
 \texttt{sky130hd/gcd}, \texttt{nangate45/gcd}, \texttt{sky130hd/aes},
 and \texttt{asap7/gcd}.  This ORFS vintage uses the legacy
 \texttt{pdngen::specify\_grid} syntax (via \texttt{pdn.cfg} /
@@ -310,6 +333,28 @@ recovered as GROUND; (iii) adding \texttt{rails\_start\_with}=GROUND,
 \texttt{halo}=5, and rail pitch/offset leaves geometry bit-identical
 (133 wires / 2,907 vias)---direct evidence of dead parameters.
 
+\subsection{Partial-region extrapolation}
+\label{sec:crop}
+
+To test the partial-observation motivation honestly, we cropped the
+sky130hd/gcd extracted geometry---the labeled ODB view, not imaged
+polygons---to three windows and re-ran inference on each crop alone.  A
+20\%-width full-height vertical strip ($\sim$20\% die area) recovers every
+parameter exactly---met4 1.600/27.140/13.570, met5 1.600/27.200/13.600,
+\texttt{connect} and \texttt{stripes\_start\_with} all exact---and
+regenerates
+the full die: PASS.  A $\sim$10\%-area square in the lower-left corner
+(3 stripes per layer per net in-window) likewise recovers everything
+exactly: PASS.  But a thin 10\%-width vertical strip fails: met5 is
+recovered exactly, yet the window holds only one VDD and zero VSS met4
+stripes, so met4 pitch is unidentifiable and full-die regeneration
+FAILS---an information deficit, not a numerical error.  Local recovery
+therefore depends on crop shape and on each (layer, net) presenting
+enough period instances (here, $\geq$2--3 stripes sufficed).  We stress
+the gap this does not close: these are labeled-database crops; net
+identification and shape-kind labeling from unlabeled imaged polygons
+remain unevaluated future work.
+
 \section{Identifiability Analysis}
 \label{sec:ident}
 
@@ -317,13 +362,16 @@ We began this study expecting the parameter$\to$geometry mapping to be
 significantly non-injective, hoping to characterize large equivalence
 classes.  The experiments say otherwise.  Formally, let $G$ be the map
 from \texttt{pdngen} configurations to placed grid geometry, and let
-$\sim$ identify configurations that differ only in provably dead
-parameters: \texttt{rails\_start\_with} (never read in
+$\sim$ identify configurations that differ only in dead parameters:
+\texttt{rails\_start\_with} (provably dead---it appears zero times in
 \texttt{PdnGen.tcl}), \texttt{halo} (macro-only), rail
-\texttt{pitch}/\texttt{offset}, and the arbitrary grid name.
-\textbf{On the quotient space of live parameters, $G$ is injective---except
-in the following degenerate regimes}, which we state explicitly as the
-non-trivial equivalence cases this generator does admit:
+\texttt{pitch}/\texttt{offset} (dead by code inspection and case
+verification: re-adding them leaves geometry bit-identical), and the
+arbitrary grid name.
+\textbf{On the quotient space of live parameters, $G$ is empirically
+identifiable}---every live parameter was recovered exactly on all tested
+configurations---\textbf{except in the following degenerate regimes},
+which we state explicitly as the non-trivial equivalence cases observed:
 
 \begin{enumerate}
 \item \emph{Phasing coincidence.} When an explicit \texttt{spacing} $S$
@@ -335,24 +383,35 @@ leaves \texttt{pitch} unidentifiable: any pitch above a geometry-implied
 lower bound reproduces the same shapes.
 \item \emph{Zero-yield connect pairs.} A \texttt{connect} pair that
 produces no vias is geometrically equivalent to omitting that pair
-entirely.  We conjectured such a pair might instead be equivalent to a
-split pair; experimentally, the spanning pair
-\texttt{\{\{met1 met5\}\}} yields \emph{zero} vias---\texttt{pdngen}
-silently skips every insertion (PDN-0042)---while the split pair
-\texttt{\{\{met1 met4\} \{met4 met5\}\}} yields the full 2,907-via stack,
-so spanning-vs-split is identifiable (connect-pair granularity is
-recoverable), but spanning-vs-omitted is a genuine equivalence.  Note
-this zero-yield behavior was observed on the 2022 legacy Tcl
-implementation and may be version-specific (see \S\ref{sec:deflim}).
+entirely.  The mechanism is geometric overlap, not layer adjacency
+(\S2): the spanning pair \texttt{\{\{met1 met5\}\}} yields \emph{zero}
+vias because the parallel narrow met1 rail cannot cover the wide met5
+stripe---\texttt{pdngen} skips every insertion (PDN-0042)---while the
+split pair \texttt{\{\{met1 met4\} \{met4 met5\}\}} yields the full
+2,907-via stack, so spanning-vs-split is identifiable (connect-pair
+granularity is recoverable), but spanning-vs-omitted is a genuine
+equivalence.  Note this zero-yield behavior was observed on the 2022
+legacy Tcl implementation; the current C++ version turns it into a hard
+error (PDN-0179, see \S\ref{sec:deflim}).
+\item \emph{Micron-to-dbu rounding.} Stripe geometry is computed in
+database units, so distinct $\mu$m values that round to the same dbu are
+indistinguishable.  Recovery is therefore exact only down to the layout
+database's unit grid, and parameter values must be quoted with that
+quantization in mind.
 \end{enumerate}
 
-Outside these regimes, every geometry-determining parameter is
-recoverable from the extracted layout database.  Macro-grid parameters,
-pin names, and blockages are unrecoverable only when absent from the
-design (no macros, hence no macro-grid geometry to observe).  The
-``essentially injective'' claim is therefore a precise statement about
-the live-parameter quotient space, not a dismissal of the degenerate
-cases above.
+Outside these regimes, every geometry-determining parameter was recovered
+exactly from the extracted layout database on every tested
+configuration.  Macro-grid parameters, pin names, and blockages are
+unrecoverable only when absent from the design (no macros, hence no
+macro-grid geometry to observe).  We deliberately weaken ``injective''
+to \emph{empirically identifiable}: the evidence is four designs plus
+variant experiments, not a proof, and joint transforms we did not test
+(e.g.\ offset $\geq$ pitch/2 interacting with
+\texttt{stripes\_start\_with}) could in principle add equivalence cases.
+The claim is therefore a precise empirical statement about the
+live-parameter quotient space, not a dismissal of the degenerate cases
+above.
 
 \section{Defenses: Anti-RE PDN Obfuscation}
 \label{sec:defense}
@@ -363,8 +422,22 @@ every crossing make the forward model invertible.  A natural counter is
 \emph{anti-RE PDN obfuscation}: grids engineered so that the inference
 assumptions fail, while the PDN remains functional.  Hardware obfuscation
 has a rich literature at the logic level (camouflaging, logic
-locking~\cite{shamsi2019}) and in split manufacturing~\cite{perez2020},
-but we are aware of no prior work targeting the PDN grid itself.
+locking~\cite{shamsi2019,rajendran2012}), in split
+manufacturing~\cite{perez2020,imeson2013}, and in design-for-trust
+generally~\cite{rajendran2014}; physical-design
+watermarking~\cite{kahng2001} and power-signature
+watermarking~\cite{ziener2008} hide information in layout and power
+networks respectively, and layout-level anti-RE
+techniques~\cite{chen2015} are the closest defense-side analog to our
+decoy grids.  On the attack side, our work is most directly preceded by
+ReGDS~\cite{rajarathnam2020}, which recovers gate-level netlists from
+GDSII at 100\%---we invert the same ``layout as evidence'' threat model
+one level up, recovering generator \emph{parameters} rather than
+netlists---and the power grid's security relevance is independently
+established by power-grid-aware side-channel
+analysis~\cite{wang2013} and PDN-impedance tamper
+sensing~\cite{mosavirik2023}.  A systematic search found no peer-reviewed
+prior work on obfuscation of the on-chip PDN structure itself.
 (Prior metal-mesh work targets invasive probing and tamper
 evidence---conductive shield layers that detect decapsulation---a
 different threat model from rule extraction, which we do not count as
@@ -405,20 +478,40 @@ same-net met4--met5 vias are added as well.  Stripes obeying
 \texttt{pdngen}'s loop bound yield 36 extra decoy stripes (18 per layer):
 wires $133 \to 169$, vias $2{,}907 \to 5{,}994$.
 
-\paragraph{Attacker side.} The naive inference crashes immediately:
-\texttt{AssertionError: non-uniform pitch met4 VDD}; no parameters are
-emitted.  The exact-recovery attack of Sections~3--5 is defeated outright.
+\paragraph{Attacker side.} The naive inference fails loudly: with the
+least-squares fit of \S3, met4 VDD reports pitch $13570.0$\,dbu with
+maximum residual $3571.1$\,dbu, far above the 2\,dbu gate
+(\texttt{AssertionError}; no parameters emitted).  The exact-recovery
+attack of Sections~3--5 is defeated outright---for the naive attacker.
 
-\paragraph{Adaptive attacker: subset enumeration.} An attacker who
-\emph{knows} decoys may be present can enumerate all stripe subsets
-looking for arithmetic progressions (2\,dbu tolerance).  On met4 VSS
-(9 true + 9 decoy stripes), two \emph{exactly equivalent} 9-stripe pitch
-grids exist---the true grid and the decoy grid---and the attacker cannot
-determine which is the designer's original.  On VDD (10 true + 9 decoy),
-three 9-stripe candidates exist (two true 9-subsequences plus the decoy
-grid); the full 10-stripe grid is unique, but identifying it requires the
-prior knowledge that the original had 10 stripes, which the attacker
-does not have, and the defender can invert the majority so that
+\paragraph{Adaptive attacker: multi-sequence inference.} An attacker who
+knows decoys may be present upgrades the pitch fit to $k$ arithmetic
+sequences per (layer, net): $P$ from the modal adjacent difference,
+phases from circular clustering of $(c \bmod P)$, each cluster validated
+as an arithmetic progression.  With $k=2$ this attacker recovers
+\emph{all 73 stripe centers exactly}---met4 $P = 27.140\,\mu\mathrm{m}$
+with phases at truth and truth$+P/4$ (19/19 VDD, 18/18 VSS centers), met5
+$P = 27.200\,\mu\mathrm{m}$ likewise (18/18 per net).  The prediction is
+confirmed: both attack goals of Section~1 (extrapolation, regeneration
+under modification) need only this parameter bundle, not knowledge of
+which sequence is original.  D3 therefore does \emph{not} prevent
+geometry cloning.\footnote{Strictly, this parameter bundle is not a
+single legacy-\texttt{pdngen} configuration: feeding two
+\texttt{specify\_grid stdcell} blocks silently ignores the second (one
+\texttt{PDN-0013} in the log; first-writer-wins), and running
+\texttt{pdngen} twice rips up the first grid.  E1a's interleaved geometry
+was constructed geometrically, which is all the attacker needs---the
+bundle regenerates shapes directly.}
+
+\paragraph{What D3 does protect: intent attribution.} Even with the full
+two-sequence bundle recovered, the attacker cannot determine which
+sequence is the designer's original grid.  Enumerating stripe subsets on
+met4 VSS (9 true + 9 decoy stripes) yields two \emph{exactly equivalent}
+9-stripe pitch grids---the true grid and the decoy grid.  On VDD (10 true
++ 9 decoy), three 9-stripe candidates exist (two true 9-subsequences plus
+the decoy grid); the full 10-stripe grid is unique, but identifying it
+requires the prior knowledge that the original had 10 stripes, which the
+attacker does not have, and the defender can invert the majority so that
 ``largest AP is the original'' heuristics fail.  This is \textbf{genuine
 intent ambiguity}: two stripe subsets both form valid
 \texttt{pdngen}-style pitch grids, and the attacker cannot determine
@@ -426,20 +519,41 @@ which was the designer's original.  (This is a different object from the
 configuration-level equivalence classes hunted in
 Section~\ref{sec:ident}---there, two generator configurations mapping to
 the same geometry; here, two subsets of one defended geometry each
-admitting a valid generator configuration.)  The defense reduces the
-adaptive attacker from exact recovery to a combinatorial choice.  The
-honest boundary: D3 blinds the
-naive attacker and degrades the adaptive one to ambiguity; it does not
-make recovery information-theoretically impossible.
+admitting a valid generator configuration.)  The honest boundary: D3
+blinds the naive attacker and reduces the adaptive attacker from exact
+\emph{attribution} to ambiguity; it does not impede geometry recovery at
+all.
 
 \paragraph{Defender side.} VDD and VSS each remain a single connected
 component with zero dangling vias.  Minimum stripe spacing is
 $5.185\,\mu\mathrm{m}$ on met4 ($\geq 0.3\,\mu\mathrm{m}$ LEF) and
 $5.2\,\mu\mathrm{m}$ on met5 ($\geq 1.6\,\mu\mathrm{m}$ LEF).  The mesh
-reports worst-case drop falling from $66.90$ to $25.98$\,mV/A ($-61.2\%$)
-and mean drop from $38.89$ to $11.63$\,mV/A---the defense's physical cost
-is \emph{negative} (more parallel metal); the unquantified cost is
-routing blockage and via count (see \S\ref{sec:deflim}).
+reports worst-case drop $66.90 \to 25.98$\,mV/A and mean $38.89 \to
+11.63$\,mV/A---but this $-61.2\%$ is \emph{fully explained by doubled
+metal}, not by obfuscation.  Against an equal-metal unobfuscated baseline
+(met4/met5 pitch halved to $P/2$, no decoys; 169 wires, 5,994 vias,
+stripe length $18{,}918.4\,\mu\mathrm{m}$---identical to E1a):
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+ & Baseline & E1a (D3 decoys) & $P/2$ equal-metal \\
+\midrule
+wires & 133 & 169 & 169 \\
+vias & 2,907 & 5,994 & 5,994 \\
+stripe length ($\mu$m) & 9,588.6 & 18,918.4 & 18,918.4 \\
+worst IR (mV/A) & 66.90 & 25.98 & 24.51 \\
+mean IR (mV/A) & 38.89 & 11.63 & 11.54 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The decoy grid is $+6.0\%$ \emph{worse} than the equal-metal baseline in
+worst-case drop (25.98 vs.\ 24.51\,mV/A) and $+0.8\%$ in mean (11.63
+vs.\ 11.54\,mV/A)---essentially tied.  We therefore withdraw the
+``negative physical cost'' framing: D3's real price is $2\times$ routing
+blockage on met4/met5 and $2.06\times$ via count, for no IR benefit over
+simply halving the pitch.
 
 \subsection{E2: Pitch jitter (degrades precision, does not blind)}
 
@@ -500,11 +614,12 @@ centers---a hard short---and were never run.
 \label{sec:deflim}
 
 \begin{center}
-\begin{tabular}{llll}
+\small
+\begin{tabular}{lp{2.4cm}p{4.2cm}p{4.2cm}}
 \toprule
 Mechanism & Naive attacker & Adaptive attacker & Physical cost \\
 \midrule
-D3 interleaved decoys (E1) & crashes & 2-way ambiguity (VSS) & IR $-61\%$; blockage unquantified \\
+D3 interleaved decoys (E1) & crashes (resid.\ 3571\,dbu) & geometry exact via 2-seq.\ fit; 2-way \emph{intent} ambiguity (VSS) & IR $+6.0\%$ worst vs.\ equal-metal; $2\times$ blockage, $2.06\times$ vias \\
 D2 jitter (E2) & breaks at $\geq 2\%$ & pitch err.\ $\leq 1.2\%$ & IR $\pm 0.6\%$ \\
 D4 via dropout (E3) & connect unchanged & wire params unaffected & IR $+42\%$--$+426\%$; self-defeating \\
 D1 no-via decoys & crashes & exact recovery (falsified) & none \\
@@ -517,11 +632,18 @@ Limitations must be stated plainly.  The resistive mesh is a comparative
 first-order model (uniform current, ideal met5 feed, nominal
 $5\,\Omega$ vias, no packaging or EM analysis)---it cannot be presented
 as signoff, and no commercial IR-drop/EM signoff is available in this
-environment.  The routability cost of D3 (the interesting defense) is
-unquantified; measuring it requires running the full flow through
-routing.  The main attack experiments (\S3--\S5) use a toy design (gcd) and
-OpenROAD \texttt{f12e2f47} (2022) with the legacy Tcl \texttt{pdngen}
-(\texttt{pdngen::specify\_grid}).  To check that the exact-recovery
+environment.  The routability cost of D3 is now quantified against an equal-metal
+baseline: $2\times$ routing blockage on met4/met5 and $2.06\times$ via
+count, with worst-case IR $+6.0\%$ versus the unobfuscated $P/2$ grid; a
+full-flow routing congestion/timing measurement remains future work.  The
+main attack experiments (\S3--\S5) use a toy design (gcd) and OpenROAD
+\texttt{f12e2f47} (2022) with the legacy Tcl \texttt{pdngen}
+(\texttt{pdngen::specify\_grid}).  Only three distinct grid
+configurations are exercised (sky130hd/gcd and aes share one), and none
+of the test designs has a core ring or macro grids---the most complex,
+IP-valuable part of a PDN spec.  Porting the method to commercial
+generators (e.g.\ Innovus \texttt{addStripe}) or ring/macro-bearing
+designs is future work.  To check that the exact-recovery
 mechanism is not a legacy-only artifact, we rebuilt current OpenROAD from
 source (HEAD \texttt{80c6be9}, September 2026) and re-ran the full
 round-trip on \texttt{sky130hd/gcd} under the new C++ API
@@ -531,7 +653,11 @@ data.  The inferred configuration regenerates the truth geometry
 \emph{exactly}: 3,051/3,051 shapes (134 wires $+$ 2,917 vias), zero
 symmetric difference, with met4/met5 widths, pitches, and offsets
 recovered to the unit grid (met4: 1.600/27.140/13.570; met5:
-1.600/27.200/13.600).  A successful \texttt{\{met1 met4\}} connect now
+1.600/27.200/13.600).  The small count difference versus the 2022 run
+(133 wires / 2,907 vias) comes from the changed stripe-offset datum: the
+legacy reference subtracts half the maximum rail width (Eq.~1), while the
+current version references the core-area edge directly, shifting one
+stripe in or out of the loop bound.  A successful \texttt{\{met1 met4\}} connect now
 yields a \emph{complete} intermediate via stack (912 vias per
 met1--met2, met2--met3, and met3--met4 step, 181 for met4--met5).
 Generator quirks differ from the 2022 version in detail: the
@@ -556,20 +682,22 @@ from the extracted layout database, validated end-to-end by round-trip
 regeneration on four designs across three PDKs, and confirmed not to be
 a legacy-only artifact by an exact round-trip on current OpenROAD
 (HEAD \texttt{80c6be9}) with the C++ PDN API.  The parameter-to-geometry
-mapping of \texttt{pdngen} proved injective on the live-parameter
-quotient space, with three explicitly characterized degenerate
-regimes---an honest, somewhat surprising negative result for the
-equivalence-class hunt.  For defenders, the takeaway is
+mapping of \texttt{pdngen} proved empirically identifiable on the
+live-parameter quotient space, with four explicitly characterized
+degenerate regimes---an honest, somewhat surprising negative result for
+the equivalence-class hunt.  For defenders, the takeaway is
 that regular PDN grids leak their complete construction rules; our defense
-experiments show this leakage can be engineered away---interleaved decoy
-grids replace exact recovery with a genuine two-way intent ambiguity at
-negative IR-drop cost---while cheap fixes (jitter, via dropout) provably
+experiments show this leakage can be engineered into \emph{intent}
+ambiguity---interleaved decoy grids leave an adaptive attacker unable to
+tell which of two equivalent grids is original---but not into geometry
+unclonability, and not for free (no IR benefit over an equal-metal
+unobfuscated grid); cheap fixes (jitter, via dropout) provably
 do not suffice.  For the open-source EDA community, the verified forward
 model and the dead-parameter findings (notably
 \texttt{rails\_start\_with}) are directly actionable.
 
 \bibliographystyle{plain}
-\begin{thebibliography}{9}
+\begin{thebibliography}{18}
 
 \bibitem{ajayi2019toward}
 T.~Ajayi, V.~A. Chhabria, M.~Foga{\c{c}}a, S.~Hashemi, A.~Hosny,
@@ -625,6 +753,77 @@ K.~Shamsi, M.~Li, K.~Plaks, S.~Fazzari, D.~Z. Pan, and Y.~Jin.
   obfuscation: A systematic overview.
 \newblock {\em ACM Transactions on Design Automation of Electronic
   Systems}, 24(6):65:1--65:36, 2019.
+
+\bibitem{botero2021}
+U.~J. Botero, R.~Wilson, H.~Lu, M.~T. Rahman, M.~A. Mallaiyan, F.~Ganji,
+  N.~Asadizanjani, M.~M. Tehranipoor, D.~Woodard, and D.~Forte.
+\newblock Hardware trust and assurance through reverse engineering: A
+  tutorial and outlook from image analysis and machine learning
+  perspectives.
+\newblock {\em ACM Journal on Emerging Technologies in Computing Systems},
+  17(4):1--53, 2021.
+
+\bibitem{rajarathnam2020}
+R.~S. Rajarathnam, Y.~Lin, Y.~Jin, and D.~Z. Pan.
+\newblock ReGDS: A reverse engineering framework from GDSII to gate-level
+  netlist.
+\newblock In {\em Proc.\ IEEE International Symposium on Hardware Oriented
+  Security and Trust (HOST)}, pages 154--163, 2020.
+
+\bibitem{chen2015}
+S.~Chen, J.~Chen, D.~Forte, J.~Di, M.~Tehranipoor, and L.~Wang.
+\newblock Chip-level anti-reverse engineering using transformable
+  interconnects.
+\newblock In {\em Proc.\ IEEE International Symposium on Defect and Fault
+  Tolerance in VLSI and Nanotechnology Systems (DFTS)}, pages 109--114,
+  2015.
+
+\bibitem{wang2013}
+X.~Wang, W.~Yueh, D.~B. Roy, S.~Narasimhan, Y.~Zheng, S.~Mukhopadhyay,
+  D.~Mukhopadhyay, and S.~Bhunia.
+\newblock Role of power grid in side channel attack and power-grid-aware
+  secure design.
+\newblock In {\em Proc.\ 50th ACM/EDAC/IEEE Design Automation Conference
+  (DAC)}, 2013.
+
+\bibitem{mosavirik2023}
+T.~Mosavirik, S.~K. Monfared, M.~Saadat-Safa, and S.~Tajik.
+\newblock Silicon echoes: Non-invasive Trojan and tamper detection using
+  frequency-selective impedance analysis.
+\newblock {\em IACR Transactions on Cryptographic Hardware and Embedded
+  Systems}, 2023(4):238--261, 2023.
+
+\bibitem{rajendran2014}
+J.~Rajendran, V.~Jyothi, O.~Sinanoglu, and R.~Karri.
+\newblock Regaining trust in VLSI design: Design-for-trust techniques.
+\newblock {\em Proceedings of the IEEE}, 102(8):1266--1282, 2014.
+
+\bibitem{imeson2013}
+F.~Imeson, A.~Emtenan, S.~Garg, and M.~Tripunitara.
+\newblock Securing computer hardware using 3D integrated circuit (IC)
+  technology and split manufacturing for obfuscation.
+\newblock In {\em Proc.\ 22nd USENIX Security Symposium}, pages 495--510,
+  2013.
+
+\bibitem{rajendran2012}
+J.~Rajendran, Y.~Pino, O.~Sinanoglu, and R.~Karri.
+\newblock Security analysis of logic obfuscation.
+\newblock In {\em Proc.\ 49th ACM/EDAC/IEEE Design Automation Conference
+  (DAC)}, pages 83--89, 2012.
+
+\bibitem{kahng2001}
+A.~B. Kahng, J.~Lach, W.~H. Mangione-Smith, S.~Mantik, I.~L. Markov,
+  M.~Potkonjak, P.~Tucker, H.~Wang, and G.~Wolfe.
+\newblock Constraint-based watermarking techniques for design IP
+  protection.
+\newblock {\em IEEE Transactions on Computer-Aided Design of Integrated
+  Circuits and Systems}, 20(10):1236--1252, 2001.
+
+\bibitem{ziener2008}
+D.~Ziener and J.~Teich.
+\newblock Power signature watermarking of IP cores for FPGAs.
+\newblock {\em Journal of Signal Processing Systems}, 51(1):123--136,
+  2008.
 
 \end{thebibliography}
 
