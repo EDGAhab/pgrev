@@ -260,3 +260,73 @@ Reports: `reports/rev3-ws1-unlabeled.md`, `reports/rev3-ws2-randscan.md`,
   hbox warnings only. Output: `build/paper.pdf` (146,597 bytes);
   user-facing copy refreshed at
   `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
+
+## rev4 writing revision (2026-09-27)
+
+### Experiments now reflected in text
+- **Dropout-aware sweep (reports/rev4-exp1-dropout-rescan.md):** N=800 —
+  inference 800/800, geometric round-trip 800/800, parameter-exact
+  796/800 = 99.5%, 0 failures. 64/66 former failures resolved via the
+  uniqueness argument (honestly caveated: truth records lost with
+  ephemeral scratch, so these rely on uniqueness + round-trip rather
+  than item-by-item truth comparison); 2 genuine duals
+  (ws2_0082, ws2_0507) flagged AMBIGUOUS. met5 dropout threshold
+  corrected to offset < width/2 (transcription error fixed; §2 now
+  states the dropout rule as part of the forward model). 1-dbu spacing
+  lesson documented (exact integer comparison shift == pitch//2).
+- **End-to-end demo (reports/rev4-exp2-e2e-demo.md):** new §5.7 —
+  recovered spec replayed on a floorplan with an inserted 50×50µm macro:
+  141 wires / 2785 vias, 0 errors, 8 stripes cut at halo, 163/163 via4
+  intact, 0 wires/vias inside macro; naive copy leaves 8 stripes
+  shorting + 122 vias inside. Thesis: spec = executable intent,
+  geometry = one-time instance. Boundaries stated (same generator,
+  macro-grid declaration designer-standard, met1 rails unaffected).
+- **Innovus addStripe mapping (reports/rev4-exp3-innovus-mapping.md):**
+  new transfer-analysis paragraph in §8 (limitations) — parameter
+  semantics map 1:1, but via/connect inference does NOT transfer
+  (sroute separation); datum/snap/truncation unmeasured; no license,
+  document-level analysis only. No claim of official Cadence manual use.
+
+### Writing/structural changes
+- **Reframe:** title kept; abstract/intro/conclusion shifted from
+  "large exact-recovery attack" to identifiability characterization +
+  negative defense results. Abstract rewritten (~190 words; see word
+  count below): drops "from unlabeled polygons alone", uses "de-labeled
+  ODB", distinguishes label gap (closed) from imaging gap (future work),
+  drops "closing the harder gap" contradiction.
+- **Contributions:** 8 → 5 (merged into: verified model + inference;
+  identifiability evidence; label-free + e2e demo; rings/macro + Innovus
+  transfer; defenses).
+- **Threat model:** FOLLOWPIN/STRIPE/via-span labels now explicitly
+  called out as generator leakage; §5.5's 0-misclassification result
+  cited to show the kind-label step is trivial.
+- **Terminology:** R0/MX → N/FS unified; "provably dead" → "dead by
+  exhaustive source inspection".
+- **§6 rewritten:** primary N=800 with 800/800, 796/800 = 99.5%, 4
+  equiv, 0 failures; (¬start, o+shift) duality recast as analytic
+  argument (0/553 empirical check kept as confirmation); equivalence
+  catalog now 4 classes (+dropout-induced naming duality).
+- **§5.6:** "Reviewers noted…" sentence removed.
+- **E1:** IR tables/paragraphs labeled qualitative (uniform-current,
+  ideal-feed, comparative only); "defender can invert the majority"
+  downgraded to untested hypothesis.
+- **E2:** 15 attempts → 13 legal runs (2 resampled at j=15%); j=0%
+  errors now listed (pitch 0, offset 0).
+- **Generalization §8:** rewritten honestly — 3 hand-picked configs +
+  800 sweep + rings/macro covered; outdated "rings/macro uncovered"
+  sentence fixed.
+- **Related work:** added layout-regularity/template paragraph (Degate
+  template matching, ML gate recognition recover instances not rules;
+  ICC2 create_pg_mesh_pattern + Innovus addStripe as industrial PDN
+  template practice) — all verifiable, no fabricated citations.
+- **Table 1:** column widths retuned (2.4/5.8/4.6cm).
+
+### Build (2026-09-27, rev4)
+- Compiled with `~/bin/tectonic paper.tex --outdir build`: zero errors,
+  zero LaTeX warnings; no overfull hbox >= 10pt (fixed three: Innovus
+  mapping line, e2e `(pdn_inferred.cfg:` line, E1 residual line; all via
+  rewording, no `\sloppy`). Output: `build/paper.pdf` (16 pages).
+- Abstract: 194 words (target <200).
+- User-facing copy refreshed at
+  `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
+- `paper.docx` untouched; nothing pushed (per task constraints).
