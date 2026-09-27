@@ -193,3 +193,70 @@ invented.
   introduced by this edit). Output: `build/paper.pdf` (104.45 KiB);
   user-facing copy refreshed at
   `~/workspace/your_files/pgrev-attack-preprint.pdf`.
+
+## Revision 3 — reviewer round 3 (Path A), 2026-09-27
+
+Scope: respond to the third-round review (which challenged the attack
+framing itself) by doing the requested experiments instead of
+downgrading the paper. New experiments: WS1 unlabeled-polygon attack
+MVP, WS2 randomized sweep (N=800 + N=630), WS3 ring/macro recovery.
+Reports: `reports/rev3-ws1-unlabeled.md`, `reports/rev3-ws2-randscan.md`,
+`reports/rev3-ws3-ringmacro.md`.
+
+- **New §5.5 "Label-free attack" (Issue 1 core demand):** de-labeled
+  polygons → union-find connectivity (exactly 2 components, purity 2/2,
+  ~2 s) → PG identification (synthetic 300-signal-wire test: top-2
+  still PG) → polarity via row orient + tap-cell library knowledge
+  (96/96 rails; truth spot-checks 58/58, 228/228, 106/106 on the other
+  three designs) → rail/stripe classification (0 misclassifications) →
+  via-span recovery → unmodified `pg_infer.py`: all params exact incl.
+  `stripes_start_with`=POWER, byte-identical cfg, round-trip 133/133
+  wires, 2907/2907 vias. Honest limits stated: VDD/VSS global-swap +
+  `starts_with`-flip Z2 naming symmetry (attacker without PDK knowledge
+  recovers only up to the Z2 class); input is de-labeled ODB, not true
+  imaging (delayering noise unmodeled); SPECIALNETS names are label
+  leakage (naming only).
+- **New §6 paragraphs "Randomized sweep" (Issue 2):** N=800 → 732/800 =
+  91.5% dbu-exact; independent N=630 (seed 7) → 553/600 = 92.2%;
+  width/pitch 100% in every success. Failures = stripe-dropout modeling
+  gap (47/47 follow the drop rule; met4 threshold offset<width/2, met5
+  offset<railw/2+width/2, 10-dbu bisection). Duality
+  (¬starts_with, o+shift) refuted 0/553 (boundary stripe at ref+o always
+  placed for o≥0). Catalog: Class P (20/20), Class S (30/30), single-
+  stripe boundary; offset-translation class falsified.
+- **New §5.6 "Core rings and macro grids" (scale):** ring 6/6 exact,
+  141/141 wires, 2989/2989 vias; macro straps 6/6 exact, connect chain
+  {metal4_PIN_ver metal5}/{metal5 metal6}/{metal6 metal7}, 84/84 wires,
+  350/350 vias. Honest: blockages superset-equivalent (truth metal1–4
+  vs observed metal4, geometrically identical); pin names/orient need
+  LEF/DEF; pad_offset rings and rotated macros uncovered.
+- **Issue 4 (reference frame):** explicit origins — legacy (10120,10640)
+  dbu vs current core_area (10120,10880) dbu (240 dbu shift); both truth
+  offsets 13.6, recovered 13.600 relative to each frame; 133→134 is the
+  datum shift; 3051/3051 is a within-new-version round-trip.
+- **Issue 5:** attack goal unified as "parameter bundle sufficient to
+  reconstruct geometry" (generator-agnostic) — dissolves the D3/footnote
+  contradiction. Intent-attribution value narrowed (matters only when
+  the attacker needs the designer's original intent). D2/D3 stated as
+  geometry post-processing needing flow integration (limitation). IR
+  claims made qualitative (coarse model; no precise ±%/+6.0% claims);
+  three-way table numbers kept with weakened wording.
+- **Issue 6:** `rails_start_with` "provably dead" now carries the method
+  (full-text search of PdnGen.tcl@f12e2f47 — file archived in repo;
+  literal key access only; `dict keys` enumerates layer names; parameter
+  absent from current C++ src/pdn/).
+- **Minor:** abstract compressed 412 → 181 words; all 9 "honest*"
+  occurrences removed/rewritten; E1a defined in the naming paragraph;
+  1-dbu tolerance explained (absorbs pdngen float→dbu rounding) + via
+  comparison key (net, layer-span, via-name, box); Table 1 note on
+  asap7 M1/M2 dual rail layers; reproducibility paragraph with repo URL
+  https://github.com/EDGAhab/pgrev (pg_infer.py, randscan.py,
+  PdnGen.tcl); related work: search-scope statement + PDN
+  synthesis/forward-problem discussion.
+
+## Build (2026-09-27, rev3)
+- Compiled with `~/bin/tectonic paper.tex --outdir build`: zero errors
+  (added `\usepackage{amssymb}` for `\mathbb`); cosmetic overfull/underfull
+  hbox warnings only. Output: `build/paper.pdf` (146,597 bytes);
+  user-facing copy refreshed at
+  `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
