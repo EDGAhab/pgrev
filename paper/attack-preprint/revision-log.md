@@ -330,3 +330,57 @@ Reports: `reports/rev3-ws1-unlabeled.md`, `reports/rev3-ws2-randscan.md`,
 - User-facing copy refreshed at
   `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
 - `paper.docx` untouched; nothing pushed (per task constraints).
+
+## rev5 writing revision (2026-09-27)
+
+Source: five new experiment reports (rev5-expA/B/C/D/E). Writing only;
+no experimental numbers altered. `paper.docx` untouched; nothing pushed.
+
+- **Abstract:** rewritten to 199 words (target 150-200): fresh-seed
+  99.75% / breadth 99.25% / real GDSII / e2e demo / cost model / defenses;
+  Innovus kept at document-level; no "directly actionable".
+- **New §2 (moved from Results tail):** "End-to-end motivation: the spec
+  as executable intent" now fronts the paper as core motivation, followed
+  by the manual-recovery cost model (three-layer argument: single grid
+  hand-feasible; aes-scale 140-280 h; campaign = 8-16 human-years and
+  statistics/negatives unobtainable by hand). All hardcoded § numbers
+  after the insertion shifted +1 and were fixed.
+- **Contributions:** item 2 now cites fresh-seed 99.75% with archived
+  truth + breadth 99.25% + real GDSII; item 3 adds GDSII foundry input.
+- **Threat model:** de-labeled regime validated on real GDSII stream-out
+  (actual untrusted-foundry input).
+- **§5.5 (label-free):** new GDSII paragraph — 3040 polygons, 6 TEXT
+  stripped, 2 components, 96/96 polarity, 133/133 rail/stripe, 2907/2907
+  vias, round-trip all exact; fixed union-find j>i ordering bug exposed
+  by layer-grouped GDS order; foundry vs silicon-delayering split stated.
+- **§6 sweep rewritten:** strict metric table (inference/round-trip/exact
+  800/800, 798/800=99.75%, 2 equiv, 0 failures); fresh seed 20260929,
+  truth archived, all round-trips measured; breadth paragraph (794/800 =
+  99.25%, 3 fails = pdngen float/dbu 1-2 dbu cracks, ~5/1600 duals).
+  Dropout naming duality given analytic condition
+  o in [w/2-shift, w/2); (¬start,o+shift) rejection now states its exact
+  boundary (holds for o >= w/2; the dropout window is the exception),
+  0/553 + 0/800 confirmation.
+- **E1:** 6 subsets -> 5 legal, design-level exactly 2 hypotheses
+  (all-true vs all-decoy); via 4-class symmetry 100% (171/171 x2,
+  162/162 x2, max diff 0), flagged as carrier-measured not theorem.
+- **E2:** "degrades precision" -> "coarsens recovery"; offset error
+  stated honestly as 2.97 µm ≈ 11% of pitch.
+- **Dead parameters:** search scope expanded — full OpenROAD tree zero
+  hits; ORFS only 7 inert .cfg settings; legacy Tcl removed, finding now
+  archival not actionable ("directly actionable" removed from conclusion).
+- **Review residue removed:** "earlier draft's transcription error",
+  "design-doc numbering", "we therefore withdraw ... framing".
+- **5Ω via resistance:** now "assumed nominal value; comparative only".
+- **Conclusion/limitations:** 99.75%+99.25%, GDSII, E1 two-hypothesis;
+  deflim notes 1600 configs across 3 PDKs.
+
+### Build (2026-09-27, rev5)
+- Compiled with `~/bin/tectonic paper.tex`: zero errors, zero warnings
+  (also cleared all pre-existing rev4 warnings; added `array` package
+  for raggedright table columns; no `\sloppy`). Output: `paper.pdf`
+  (18 pages).
+- Abstract: 199 words (target 150-200).
+- User-facing copy refreshed at
+  `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
+- `paper.docx` untouched; nothing pushed (per task constraints).
