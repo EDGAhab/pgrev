@@ -21,6 +21,24 @@ TOL_DBU = 2  # tolerance for pitch/offset arithmetic in dbu
 
 def um(dbu, per): return dbu / per
 
+def ls_fit(cs):
+    """Least-squares fit of c_i = c0 + i*p (indices assumed consecutive).
+
+    Robust pitch estimator (cf. paper §7.2): the minimum-variance estimator
+    for near-arithmetic stripe centers, tolerant to sub-dbu numerical noise
+    that can flip a mode-of-rounded-diffs vote. The residual gate below still
+    rejects genuinely multi-modal (e.g. decoy-interleaved) grids, so the
+    naive attacker keeps its fail-loud behavior on obfuscated inputs.
+    """
+    n = len(cs)
+    sx = sum(range(n)); sxx = sum(i * i for i in range(n))
+    sy = sum(cs); sxy = sum(i * c for i, c in enumerate(cs))
+    den = n * sxx - sx * sx
+    p = (n * sxy - sx * sy) / den
+    c0 = (sy - p * sx) / n
+    resid = max(abs(c - (c0 + i * p)) for i, c in enumerate(cs))
+    return p, c0, resid
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True)
@@ -95,9 +113,11 @@ def main():
             cs = sorted(by_net[n])
             firsts[n] = cs[0]
             if len(cs) > 1:
-                diffs = [b - a for a, b in zip(cs, cs[1:])]
-                p = Counter(round(x) for x in diffs).most_common(1)[0][0]
-                assert max(abs(x - p) for x in diffs) <= TOL_DBU, f"non-uniform pitch {lay} {n}"
+                p_est, _c0_est, resid = ls_fit(cs)
+                p = int(round(p_est))
+                assert resid <= TOL_DBU, (
+                    f"non-uniform pitch {lay} {n}: LS pitch {p_est:.1f} dbu, "
+                    f"max residual {resid:.1f} dbu > {TOL_DBU} dbu")
                 pitches[n] = p
         pitch = Counter(pitches.values()).most_common(1)[0][0] if pitches else None
         if pitch is None:
