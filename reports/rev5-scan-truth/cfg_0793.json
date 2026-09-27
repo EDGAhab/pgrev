@@ -1,0 +1,1 @@
+{"i": 793, "kind": "primary", "sampled": {"railw": 720, "sw": "POWER", "m4": {"w": 2172, "p": 28232, "o": 36, "s": null}, "m5": {"w": 2568, "p": 48960, "o": 8442, "s": null}}, "truth_dbu": {"sw": "POWER", "railw": 720, "m4": {"w": 2172, "p": 28232, "o": 36, "s": null}, "m5": {"w": 2568, "p": 48960, "o": 8442, "s": null}}}

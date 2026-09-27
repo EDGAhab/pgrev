@@ -3,11 +3,13 @@
 Worker: for one config -> pdngen, extract, infer, compare (dbu-exact),
 round-trip non-exact cases, dual-config equivalence test.
 """
-import csv, json, math, os, random, re, shutil, subprocess, sys, time
+import csv, hashlib, json, math, os, random, re, shutil, subprocess, sys, time
 from concurrent.futures import ProcessPoolExecutor
 
 REPO = os.path.expanduser("~/pgrev")
 RS = "/tmp/rs"
+# rev5: truth configs are archived in-repo (never /tmp) for reviewer audit.
+TRUTH_DIR = f"{REPO}/reports/rev5-scan-truth"
 OPENROAD = os.path.expanduser("~/pgrev/tools/eda/bin/openroad")
 BASE_ODB = f"{REPO}/tools/OpenROAD-flow-scripts/flow/results/sky130hd/gcd/base/2_5_floorplan_tapcell.odb"
 BASE_SDC = f"{REPO}/tools/OpenROAD-flow-scripts/flow/results/sky130hd/gcd/base/1_synth.sdc"
@@ -164,6 +166,10 @@ def worker(i, cfg):
         tag = f"_rs{i}"
         shapes = extract(odb, tag)
         res["n_shapes"] = sum(1 for _ in open(shapes)) - 1
+        # rev5: fingerprint the truth-generated geometry for the seed-fidelity
+        # cross-check against the retained original-scan dirs data/ws2_*.
+        with open(shapes, "rb") as f:
+            res["shapes_md5"] = hashlib.md5(f.read()).hexdigest()
         r = run([sys.executable, f"{REPO}/src/pg_infer.py", "--tag", tag],
                 timeout=300)
         icfg_p = f"{REPO}/data/{tag}/pdn_inferred.cfg"
@@ -181,21 +187,27 @@ def worker(i, cfg):
         res["inferred"] = inf
         diffs = compare(truth, inf)
         res["diffs"] = diffs
+        # rev5: round-trip is MEASURED for every inferable config, including
+        # dbu-exact ones (no determinism argument). Status taxonomy:
+        #   exact          = params dbu-identical AND round-trip bit-exact
+        #   equiv          = params differ but round-trip bit-exact
+        #   unidentifiable = inferrer declined (single-stripe, noted OMITTED)
+        #   fail           = round-trip mismatch
+        #   infer_fail     = no config produced / error
+        rtcfg = os.path.join(wd, "rt.cfg")
+        shutil.copy(icfg_p, rtcfg)
+        rt_odb = os.path.join(wd, "rt.odb")
+        pdngen_run(rtcfg, rt_odb, wd)
+        rt_shapes = extract(rt_odb, f"_rs{i}rt")
+        ok, det = pd_diff(shapes, rt_shapes)
+        res["rt_pass"] = ok
+        res["rt_detail"] = det
         if not diffs:
-            res["status"] = "exact"
+            res["status"] = "exact" if ok else "fail_exact_rt"
         elif all("OMITTED (unidentifiable)" in d for d in diffs):
             res["status"] = "unidentifiable"
             res["notes"] = inf.get("notes")
         else:
-            # round-trip with inferred cfg
-            rtcfg = os.path.join(wd, "rt.cfg")
-            shutil.copy(icfg_p, rtcfg)
-            rt_odb = os.path.join(wd, "rt.odb")
-            pdngen_run(rtcfg, rt_odb, wd)
-            rt_shapes = extract(rt_odb, f"_rs{i}rt")
-            ok, det = pd_diff(shapes, rt_shapes)
-            res["rt_pass"] = ok
-            res["rt_detail"] = det
             res["status"] = "equiv" if ok else "fail"
         # dual-config equivalence test (reviewer's example)
         dc = dual_cfg(cfg)
@@ -273,6 +285,26 @@ def main():
     os.makedirs(f"{RS}/results", exist_ok=True)
     with open(f"{RS}/configs.json", "w") as f:
         json.dump(cfgs, f)
+    # rev5: archive every sampled truth config in-repo (small JSON: sampled
+    # params only). This is the reviewer-audit trail the rev4 rescan lacked.
+    os.makedirs(TRUTH_DIR, exist_ok=True)
+    manifest = {"seed": seed, "n_primary": n_pri, "n_directed_spacing": n_dir,
+                "n_high_pitch": n_hp, "total": len(cfgs),
+                "sampler": "src/randscan.py::sample_cfg (python random.Random)",
+                "units": "dbu integers (may be fractional); truth_dbu = rounded",
+                "git_commit": subprocess.run(
+                    ["git", "-C", REPO, "rev-parse", "--short", "HEAD"],
+                    capture_output=True, text=True).stdout.strip()}
+    for c in cfgs:
+        entry = {"i": c["i"], "kind": c.get("kind", "primary"),
+                 "sampled": {k: v for k, v in c.items()
+                             if k not in ("i", "kind")},
+                 "truth_dbu": truth_dbu(c)}
+        with open(f"{TRUTH_DIR}/cfg_{c['i']:04d}.json", "w") as f:
+            json.dump(entry, f)
+    manifest["truth_files"] = [f"cfg_{c['i']:04d}.json" for c in cfgs]
+    with open(f"{TRUTH_DIR}/MANIFEST.json", "w") as f:
+        json.dump(manifest, f, indent=1)
     print(f"total {len(cfgs)} configs, 2 workers", flush=True)
     done = 0
     with ProcessPoolExecutor(max_workers=2) as ex:
