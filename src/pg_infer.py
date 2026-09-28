@@ -164,6 +164,11 @@ def infer_layer_dropout(lay, obs, width, ref, near, far, power, ground):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tag", required=True)
+    ap.add_argument("--hyps-out", default=None,
+                    help="optional path: write all globally-consistent "
+                         "hypotheses (dropout path) or the single inference "
+                         "(naive path) as JSON. Diagnostic output only; does "
+                         "not alter the inference.")
     a = ap.parse_args()
     d = f"{REPO}/data/{a.tag}"
     shapes = list(csv.DictReader(open(f"{d}/pg_shapes.csv")))
@@ -201,10 +206,12 @@ def main():
     rail_layers = sorted(set(s["layer"] for s in rails))
     max_rail_w = 0
     rail_block = []
+    rail_widths = {}
     for lay in rail_layers:
         ws = [s for s in rails if s["layer"] == lay]
         w = Counter(s["width"] for s in ws).most_common(1)[0][0]
         max_rail_w = max(max_rail_w, w)
+        rail_widths[lay] = w
         rail_block.append(f"        {lay} {{width {um(w, dbu_per_um):.3f}}}")
     # reference frame for strap offsets
     core = meta["core"]
@@ -299,12 +306,16 @@ def main():
     strap_block = []
     starts_with = None
     naive_err = None
+    naive_layer_params = []  # (lay, params) for --hyps-out; discarded on fallback
+    layer_hyps = None        # dropout path: lay -> (hyps, pitch)
+    all_combos = None        # dropout path: [(gsw, {lay: hyp})]
     try:
         for lay in strap_layers:
             r = infer_layer_naive(lay)
             if r is None:
                 continue
             params, sw = r
+            naive_layer_params.append((lay, params))
             starts_with = sw if starts_with in (None, sw) else "MIXED!"
             spec = f"{lay} {{width {um(params['width'], dbu_per_um):.3f} pitch {um(params['pitch'], dbu_per_um):.3f} offset {um(params['offset_dbu'], dbu_per_um):.3f}"
             if params["spacing_dbu"] is not None:
@@ -458,6 +469,38 @@ def main():
     pairs.sort(key=pair_key)
     conn = " ".join(f"{{{b} {t}}}" for b, t in pairs)
     notes.append(f"via-span chains collapsed: {sorted(spans)} -> {pairs}")
+
+    if a.hyps_out is not None:
+        # Diagnostic sidecar: every globally-consistent hypothesis as a
+        # generic config (additive output; inference logic above untouched).
+        conn_l = [list(x) for x in pairs]
+        hyps_json = []
+        if naive_err is None:
+            hyps_json.append({
+                "source": "naive/single",
+                "sw": starts_with,
+                "rails": dict(rail_widths),
+                "straps": {lay: {"w": p["width"], "p": p["pitch"],
+                                  "o": p["offset_dbu"], "s": p["spacing_dbu"]}
+                           for lay, p in naive_layer_params},
+                "connect": conn_l})
+        else:
+            for rank, (gsw, ch) in enumerate(all_combos):
+                straps = {}
+                for lay in strap_layers:
+                    if lay not in ch:
+                        continue
+                    h = ch[lay]
+                    _hyps, pitch = layer_hyps[lay]
+                    straps[lay] = {"w": layer_width[lay], "p": pitch,
+                                   "o": h["o"], "s": h["spacing"]}
+                hyps_json.append({"source": f"dropout/hypothesis-{rank}",
+                                  "sw": gsw,
+                                  "rails": dict(rail_widths),
+                                  "straps": straps,
+                                  "connect": conn_l})
+        with open(a.hyps_out, "w") as f:
+            json.dump(hyps_json, f, indent=1)
 
     out.append("pdngen::specify_grid stdcell {")
     out.append("    name grid")
