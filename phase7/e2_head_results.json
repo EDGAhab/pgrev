@@ -1,0 +1,503 @@
+{
+ "baseline_cfg_dbu": {
+  "i": -1,
+  "kind": "baseline",
+  "railw": 480,
+  "sw": "POWER",
+  "m4": {
+   "w": 1600,
+   "p": 27140,
+   "o": 13570,
+   "s": null
+  },
+  "m5": {
+   "w": 1600,
+   "p": 27200,
+   "o": 13600,
+   "s": null
+  }
+ },
+ "levels": [
+  {
+   "jitter_frac": 0.0,
+   "seed": 0,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 11.97,
+   "attacker_naive": {
+    "exit": 0,
+    "err_tail": ""
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.14,
+     "pitch_rel_err": 0.0,
+     "offset_err_um": 0.0,
+     "max_resid_dbu": 0.0
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.14,
+     "pitch_rel_err": 0.0,
+     "offset_err_um": 0.0,
+     "max_resid_dbu": 0.0
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.0670183791356494,
+    "mesh_worst_delta_pct_vs_base": 0.0
+   }
+  },
+  {
+   "jitter_frac": 0.02,
+   "seed": 1,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 11.089,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.079424242424246,
+     "pitch_rel_err": 0.0022319733815680228,
+     "offset_err_um": 0.24989090909089282,
+     "max_resid_dbu": 522.9878787878843
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.11695,
+     "pitch_rel_err": 0.0008492999263080056,
+     "offset_err_um": 0.13253333333332556,
+     "max_resid_dbu": 442.56666666668025
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06703192881178631,
+    "mesh_worst_delta_pct_vs_base": 0.020217851150184554
+   }
+  },
+  {
+   "jitter_frac": 0.02,
+   "seed": 2,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 11.259,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.13618181818182,
+     "pitch_rel_err": 0.0001406846653714136,
+     "offset_err_um": 0.10718181818181256,
+     "max_resid_dbu": 567.9090909090883
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.18395,
+     "pitch_rel_err": 0.0016193809874723924,
+     "offset_err_um": 0.3049111111111197,
+     "max_resid_dbu": 500.11111111112405
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06693123496838752,
+    "mesh_worst_delta_pct_vs_base": -0.13003025197833715
+   }
+  },
+  {
+   "jitter_frac": 0.02,
+   "seed": 3,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 11.245,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.130369696969698,
+     "pitch_rel_err": 0.00035483798932580904,
+     "offset_err_um": 0.022436363636352326,
+     "max_resid_dbu": 405.236363636388
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.07405,
+     "pitch_rel_err": 0.002429992630803269,
+     "offset_err_um": 0.4065777777777839,
+     "max_resid_dbu": 385.1722222222015
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06710782907040627,
+    "mesh_worst_delta_pct_vs_base": 0.1334707522183164
+   }
+  },
+  {
+   "jitter_frac": 0.05,
+   "seed": 1,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 10.197,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.137224242424242,
+     "pitch_rel_err": 0.00010227551863510945,
+     "offset_err_um": 0.133090909090919,
+     "max_resid_dbu": 1321.6606060606136
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 26.8905,
+     "pitch_rel_err": 0.0091930729550479,
+     "offset_err_um": 0.8244444444444452,
+     "max_resid_dbu": 906.944444444438
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06720211107040824,
+    "mesh_worst_delta_pct_vs_base": 0.27415156428501686
+   }
+  },
+  {
+   "jitter_frac": 0.05,
+   "seed": 2,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 10.944,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.037939393939393,
+     "pitch_rel_err": 0.0037605234362788438,
+     "offset_err_um": 0.5648727272727301,
+     "max_resid_dbu": 981.8121212121187
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.118266666666667,
+     "pitch_rel_err": 0.0008007860476541479,
+     "offset_err_um": 0.1579555555555562,
+     "max_resid_dbu": 1451.4222222222306
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06694881920314848,
+    "mesh_worst_delta_pct_vs_base": -0.10379232293894614
+   }
+  },
+  {
+   "jitter_frac": 0.05,
+   "seed": 3,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 10.279,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.064884848484848,
+     "pitch_rel_err": 0.0027676916549429073,
+     "offset_err_um": 0.11561818181818671,
+     "max_resid_dbu": 1293.4969696969638
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.050116666666664,
+     "pitch_rel_err": 0.003311839842790532,
+     "offset_err_um": 0.14320000000000438,
+     "max_resid_dbu": 849.6833333333343
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06709193285760698,
+    "mesh_worst_delta_pct_vs_base": 0.10975156801196831
+   }
+  },
+  {
+   "jitter_frac": 0.1,
+   "seed": 1,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 7.275,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 26.97481818181818,
+     "pitch_rel_err": 0.006086286594761232,
+     "offset_err_um": 1.1550181818181882,
+     "max_resid_dbu": 2426.745454545453
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.005650000000003,
+     "pitch_rel_err": 0.004950257921886461,
+     "offset_err_um": 0.16751111111111094,
+     "max_resid_dbu": 2697.888888888876
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06691449153917593,
+    "mesh_worst_delta_pct_vs_base": -0.15501359151523164
+   }
+  },
+  {
+   "jitter_frac": 0.1,
+   "seed": 2,
+   "resamples": 0,
+   "stripe_redraws": 1,
+   "min_spacing_met4_um": 7.312,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.199987878787876,
+     "pitch_rel_err": 0.0022103124092806552,
+     "offset_err_um": 0.2622545454545652,
+     "max_resid_dbu": 3147.2181818181853
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.156716666666668,
+     "pitch_rel_err": 0.0006159420289855251,
+     "offset_err_um": 0.8524222222222306,
+     "max_resid_dbu": 2800.1222222222423
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06692720737047456,
+    "mesh_worst_delta_pct_vs_base": -0.1360399435956274
+   }
+  },
+  {
+   "jitter_frac": 0.1,
+   "seed": 3,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 7.637,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 27.12238787878788,
+     "pitch_rel_err": 0.0006489359326500208,
+     "offset_err_um": 0.606854545454542,
+     "max_resid_dbu": 2781.854545454542
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.208866666666665,
+     "pitch_rel_err": 0.0025374600835175007,
+     "offset_err_um": 1.0955777777777693,
+     "max_resid_dbu": 2183.377777777787
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06662073405046022,
+    "mesh_worst_delta_pct_vs_base": -0.593337365537174
+   }
+  },
+  {
+   "jitter_frac": 0.15,
+   "seed": 1,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 6.495,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 26.694909090909093,
+     "pitch_rel_err": 0.016399812420446136,
+     "offset_err_um": 0.3197090909090839,
+     "max_resid_dbu": 3093.5636363636295
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.393016666666668,
+     "pitch_rel_err": 0.009322647998034872,
+     "offset_err_um": 2.903399999999994,
+     "max_resid_dbu": 1252.6500000000087
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06641162540061932,
+    "mesh_worst_delta_pct_vs_base": -0.9053542369354718
+   }
+  },
+  {
+   "jitter_frac": 0.15,
+   "seed": 2,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 7.168,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 26.820139393939392,
+     "pitch_rel_err": 0.011785578705254499,
+     "offset_err_um": 2.0144727272727287,
+     "max_resid_dbu": 3601.751515151511
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 27.00058333333333,
+     "pitch_rel_err": 0.005136944239744579,
+     "offset_err_um": 0.25655555555555476,
+     "max_resid_dbu": 3266.527777777781
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06703835713017654,
+    "mesh_worst_delta_pct_vs_base": 0.029809725010968763
+   }
+  },
+  {
+   "jitter_frac": 0.15,
+   "seed": 3,
+   "resamples": 0,
+   "stripe_redraws": 0,
+   "min_spacing_met4_um": 4.159,
+   "attacker_naive": {
+    "exit": 1,
+    "err_tail": "AssertionError: non-uniform pitch met4 VDD"
+   },
+   "attacker_robust_met4": {
+    "VDD": {
+     "n": 10,
+     "pitch_est_um": 26.789339393939393,
+     "pitch_rel_err": 0.0129204350059177,
+     "offset_err_um": 1.6796727272727294,
+     "max_resid_dbu": 5157.612121212122
+    },
+    "VSS": {
+     "n": 9,
+     "pitch_est_um": 26.971283333333332,
+     "pitch_rel_err": 0.0062165315647261295,
+     "offset_err_um": 0.6953111111111139,
+     "max_resid_dbu": 3889.2722222222365
+    }
+   },
+   "defender": {
+    "connectivity": {
+     "VDD": 1,
+     "VSS": 1
+    },
+    "dangling": 0,
+    "mesh_solvable": true,
+    "mesh_worst_drop_V": 0.06694917318710886,
+    "mesh_worst_delta_pct_vs_base": -0.1032641335602333
+   }
+  }
+ ]
+}

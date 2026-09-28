@@ -1,0 +1,9 @@
+{
+ "seed": 20260930,
+ "n": 200,
+ "status_counts": {
+  "exact": 200
+ },
+ "wall_min": 22.6,
+ "serial": true
+}
