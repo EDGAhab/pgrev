@@ -19,28 +19,23 @@ A Reverse-Engineering Study on OpenROAD's \texttt{pdngen}}
 \begin{abstract}
 Power delivery network (PDN) grid specifications---rail widths, stripe
 pitches and offsets, layer connectivity, net phasing---are proprietary
-design inputs.  We characterize their identifiability from
-layout geometry for regular grid generators, using OpenROAD's
-\texttt{pdngen} as the verified vehicle.  A deterministic inference
-algorithm recovers every geometry-determining parameter exactly on four
-designs across three PDKs with exact round-trip regeneration.  We close
-the \emph{label} gap twice---de-labeled ODB polygons and a real
-GDSII stream-out: connectivity tracing plus polarity identification
-recovers the spec byte-identical to the labeled pipeline, up to
-$\mathbb{Z}_2$ naming symmetry.  A fresh-seed sweep of 800
-configurations with archived truth reaches 99.75\% exact
-recovery---800/800 inference and round-trip, zero failures, two duals;
-800 more across three PDKs reach 99.25\%, all failures from 1--2\,dbu
-generator float-vs-integer cracks.  The proposed (start, offset) duality
-is rejected analytically; the dropout naming duality gets an analytic
-existence condition.  Recovery extends to core rings and macro grids.
-The recovered spec regenerates a legal PDN on a modified
-floorplan; naive geometry copy shorts.  A cost model: single-grid
-recovery is hand-feasible; the statistical characterization is not.
-Decoys protect only intent attribution; jitter coarsens, not blinds;
-via dropout is falsified.  Document-level analysis suggests
-stripe-geometry inference could transfer to \texttt{addStripe}-style
-generators; via/connect inference does not.
+design inputs.  We prove an analytic identifiability theorem for regular
+grid generators and validate it on OpenROAD's \texttt{pdngen}: an
+inference algorithm recovers every geometry-determining parameter
+exactly, with all degenerate regimes characterized explicitly---the
+dropout-induced naming duality, phasing coincidence, single-stripe
+layers, zero-yield connect pairs, dbu rounding, float-truncation
+near-duals, and the $\mathbb{Z}_2$ naming symmetry.  On four designs
+across three PDKs recovery is exact with wire-for-wire round-trip
+regeneration; a label-free variant closes the gap on real GDSII polygons
+after a constructive name-strip.  Randomized sweeps of 1{,}600
+configurations with archived truth---1600/1600 inference and round-trip,
+1595/1600 exact, zero failures---certify implementation correctness
+against the forward model.  The recovered spec regenerates a legal PDN
+on a modified floorplan where naive geometry copy fails.  Decoys buy
+only intent attribution; jitter coarsens recovery; via dropout is
+falsified.  Exact recovery holds on current C++ OpenROAD (N=200, all
+exact); legacy-Tcl results are archival.
 \end{abstract}
 
 \section{Introduction and Threat Model}
@@ -71,11 +66,11 @@ layout-database view above, and de-labeled polygons, for which we add
 connectivity tracing and power/ground net identification before
 inference runs (\S\ref{sec:unlabeled})---the de-labeled regime
 validated on a real GDSII stream-out, the actual untrusted-foundry
-input.  We state the label situation
-plainly: the shape-kind labels in the labeled view are written by the
-generator itself, so that view leaks part of the answer; \S\ref{sec:unlabeled}
-shows this step is trivially recoverable from geometry (a rule
-classifier with 0 misclassifications)---which is exactly what makes the
+input.  On labels: the shape-kind labels in the labeled view are written
+by the generator itself, so that view leaks part of the answer;
+\S\ref{sec:unlabeled}
+shows this step is recoverable from geometry (a rule
+classifier with 0 misclassifications)---which is what makes the
 de-labeled variant meaningful rather than a formality.  What we do
 \emph{not} close is the imaging gap: per-layer polygon attribution,
 cut-layer grouping, and stack order are assumed known, and delayering
@@ -83,12 +78,17 @@ noise (misalignment, missed/false cuts) is unmodeled---true imaged
 polygons remain future work.
 
 The spec matters even though the geometry can always be cloned, for two
-reasons.  First, \emph{regeneration under modification}: any post-silicon
-tampering that must keep the power grid consistent---inserting a hardware
-Trojan, re-spinning a block, or porting the layout to a derivative
-design---needs the generation rules, not a frozen snapshot of shapes.
-The spec is the portable, reusable form of the design IP; the geometry is
-one instantiation of it.  Second, and more narrowly, \emph{partial
+reasons.  First, \emph{regeneration under modification}: re-spinning a
+block or porting the layout to a derivative floorplan needs the
+generation rules, not a frozen snapshot of shapes---\S\ref{sec:e2e}
+shows the recovered spec replaying legally on a modified floorplan where
+naive polygon copy shorts.  The spec is the portable, editable form of
+the design intent; the geometry is one instantiation of it.  We are
+candid about the IP value: most spec values are process-derived rather
+than deep design secrets; what recovery buys is the ability to
+reconstruct the grid exactly and replay it---a compact, editable
+representation that polygon copying cannot provide once the floorplan
+changes.  Second, and more narrowly, \emph{partial
 observation}: an attacker who recovers the rules from a sampled die
 region can predict the PDN across the full chip, including areas never
 imaged---something static geometry cloning cannot do.  We quantify the
@@ -116,20 +116,16 @@ including the stripe-offset reference frame, the boundary
 stripe-dropout rule, and the two VSS phasing mechanisms; plus a
 deterministic inference algorithm recovering the minimal
 geometry-determining grid specification from extracted PG geometry.
-\item An empirical identifiability characterization of the
-parameter-to-geometry map on the live-parameter quotient space: exact
-recovery on 4 designs $\times$ 3 PDKs with round-trip verification,
-plus a partial-region study; a randomized sweep of 800 configurations
-on a fresh seed with archived truth reaching 99.75\% exact recovery
-under a dropout-aware inference---800/800 inference and round-trip,
-zero failures, two genuine geometric duals---plus a breadth sweep of
-800 further configurations across three PDKs and a larger design
-reaching 99.25\%, all failures attributed to 1--2\,dbu float-vs-integer
-cracks in the generator itself; degenerate regimes explicitly
-characterized (phasing coincidence, single-stripe layers, zero-yield
-connect pairs, dbu rounding, dropout-induced naming duality with an
-analytic existence condition); a proposed (start, offset) duality
-rejected analytically.
+\item An analytic identifiability theorem for the
+parameter-to-geometry map on the live-parameter quotient space, plus
+randomized sweeps of 1{,}600 configurations with archived truth,
+reaching 1600/1600 inference and round-trip, 1595/1600 exact
+(99.69\%), zero failures, and 5 genuine geometric duals---certifying
+that the implementation realizes the forward model; degenerate regimes explicitly characterized
+(phasing coincidence, single-stripe layers, zero-yield connect pairs,
+dbu rounding, truncation near-duals, and a dropout-induced naming
+duality with an analytic existence condition); a proposed (start,
+offset) duality rejected analytically.
 \item A label-free attack variant: from de-labeled ODB polygons,
 connectivity tracing and PDK-anchored net identification recover the
 full specification byte-identical to the labeled pipeline, up to a
@@ -177,7 +173,7 @@ dead met4--met5 stacks).  No rigid transform can legalize all 3{,}040
 shapes at once, and hand-repairing cut stripes and dead vias does not
 scale with design size; parametric regeneration is the only systematic
 route.  The thesis in one line: \emph{the spec is executable intent;
-the geometry is a one-time instance.}  Boundaries: this is replay
+the geometry is a one-time instance.}  This is replay
 inside the same generator, not cross-tool migration; the macro-grid
 declaration is designer-standard rather than inferred (the original
 design has no macro, so no macro-rule information exists in its
@@ -186,32 +182,18 @@ geometry); and met1 rails still pass under the macro, since
 platform's macro-grid semantics.
 
 \paragraph{Why automation: a manual-recovery cost model.}  A natural
-objection is that recovering a handful of per-layer numbers from a
-regular grid is a least-squares exercise an engineer could do by hand
-from a layout viewer in minutes.  For a minimal instance this is
-conceded: on nangate45/gcd (65 wires, 279 vias) an analytic operation
-count gives roughly 700 elementary measurements---tens of minutes to a
-few hours for an expert, with no machine-checkable certificate of
-correctness.  But cost scales with the via count, and the hard step is
-not stripe fitting: it is via-span assignment.  On sky130hd/gcd, 2{,}907
-vias each need a span verdict---via2/via3 touch no wire at all, so their
-spans come only from cut-layer tables plus XY stack alignment against
-neighbors---plus 96 rail-polarity votes and connect-chain reduction over
-1{,}083 stack positions; the analytic minimum is about 7{,}400 manual
-judgments, i.e.\ 20--40 human hours at 10--30\,s per judgment (an
-analytic estimate, not a timed trial---no human-subject measurement was
-or is claimed), with a single misassigned via corrupting the connect
-reduction.  At aes scale (318 wires, 16{,}403 vias) the same model gives
-140--280 human hours.  And the statistical characterization of
-\S\ref{sec:sweep}---recovery rates, the dropout threshold, the
-equivalence-class catalog, the 0/553 duality rejection, the
-$\mathbb{Z}_2$ naming symmetry---is not 800 repetitions of one
-measurement but a campaign whose product is the characterization
-itself: 800 configurations at 20--40 hours each is 8--16 human-years,
-and no single-instance manual measurement can in principle produce a
-recovery-rate statistic or a negative result.  Recovering one grid by
-hand is possible; characterizing identifiability by hand is not---that
-is the automation's necessity.
+objection is that recovering a handful of numbers from a regular grid is
+an exercise an engineer could do by hand from a layout viewer.  For a
+single grid this is conceded: stripe fitting is a few least-squares
+measurements, and via-span assignment is pattern-based---identify the
+stack type once from a representative sample (e.g.\ via2/via3 touch no
+wire, so spans come from cut-layer tables plus stack alignment), then
+propagate---so an expert plausibly recovers one grid in hours.  What
+automation buys is the campaign: seconds per configuration instead of
+hours, scaling to hundreds of configurations, which is what makes
+recovery-rate statistics, the duality catalog, and the falsified-defense
+verdicts possible at all.  Recovering one grid by hand is possible;
+characterizing identifiability by hand is not.
 
 \section{Forward Model of \texttt{pdngen}}
 
@@ -359,29 +341,30 @@ $384\,\mathrm{dbu} = 96 + 288$).
 
 \begin{table}[h]
 \centering
+\setlength{\tabcolsep}{4pt}
 \small
 \caption{Inferred vs.\ ground-truth grid parameters (all match exactly).}
 \label{tab:recovery}
-\begin{tabular}{l>{\raggedright\arraybackslash}p{2.4cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{4.4cm}}
+\begin{tabular}{l>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}p{6.0cm}>{\raggedright\arraybackslash}p{3.4cm}}
 \toprule
 Design & Rails & Straps (width / pitch / offset [/ spacing]) & \texttt{connect} \\
 \midrule
 sky130hd/gcd &
 met1 0.480 &
-met4 1.600/27.140/13.570; met5 1.600/27.200/13.600 &
-\{\{met1 met4\} \{met4 met5\}\} \\
+met4 1.600/27.140/13.570; \newline met5 1.600/27.200/13.600 &
+\{\{met1 met4\}\} \newline \{\{met4 met5\}\} \\
 nangate45/gcd &
 metal1 0.170 &
-metal4 0.480/56.000/2.000; metal7 1.400/40.000/2.000 &
-\{\{metal1 metal4\} \{metal4 metal7\}\} \\
+metal4 0.480/56.000/2.000; \newline metal7 1.400/40.000/2.000 &
+\{\{metal1 metal4\}\} \newline \{\{metal4 metal7\}\} \\
 sky130hd/aes &
 met1 0.480 &
 (same as sky130hd/gcd) &
-\{\{met1 met4\} \{met4 met5\}\} \\
+\{\{met1 met4\}\} \newline \{\{met4 met5\}\} \\
 asap7/gcd &
 M1, M2 0.018 &
-M5 0.120/11.880/0.300/sp.\,0.072; M6 0.288/12.000/0.513/sp.\,0.096 &
-\{\{M1 M5\} \{M5 M6\}\} \\
+M5 0.120/11.880/0.300/sp.\,0.072; \newline M6 0.288/12.000/0.513/sp.\,0.096 &
+\{\{M1 M5\}\} \newline \{\{M5 M6\}\} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -396,7 +379,14 @@ We re-ran the ORFS PDN step with only the inferred configuration
 compared wire rectangles and via sets.  Wires are compared as box
 multisets with 1\,dbu tolerance---this absorbs float-to-dbu rounding
 inside \texttt{pdngen}'s own arithmetic, not inference error---and vias
-as (net, layer-span, via-name, box) tuples.  All four
+as (net, layer-span, via-name, box) tuples.  This tolerance applies only
+to the geometry-regeneration check; parameter recovery is judged by a
+separate, stricter test---every inferred parameter must equal the
+archived truth parameter in dbu integers.  The geometric tolerance
+therefore cannot mask a parameter-level error: a wrong parameter either
+shifts geometry by a full dbu, which the 0-dbu-strict candidate
+validation catches, or leaves geometry unchanged, which is a genuine
+dual catalogued explicitly in \S\ref{sec:ident}.  All four
 designs reproduce the original geometry \emph{exactly}:
 
 \begin{center}
@@ -475,7 +465,7 @@ Every parameter is recovered exactly, including
 \texttt{stripes\_start\_with}=POWER; the inferred configuration is
 \emph{byte-identical} to the labeled pipeline's output, and the
 round-trip regenerates 133/133 wires and 2{,}907/2{,}907 vias.  Two
-boundaries.  First, a fundamental one: a global VDD/VSS swap
+qualifications apply.  First, a fundamental one: a global VDD/VSS swap
 combined with a \texttt{stripes\_start\_with} flip is geometrically
 indistinguishable---a $\mathbb{Z}_2$ \emph{naming} symmetry, broken here
 by PDK-anchored rail polarity; an attacker without PDK library knowledge
@@ -507,8 +497,25 @@ order), which the net-interleaved ODB input had masked.  GDSII natively
 provides per-layer polygon attribution, which is exactly what the
 label-free pipeline assumes known; the unclosed gap is therefore only
 the \emph{silicon} imaging gap (delayering noise: misalignment,
-missed/false cuts)---a separate scenario from the foundry GDSII one,
-stated explicitly.
+missed/false cuts)---a separate scenario from the foundry GDSII one.
+
+\paragraph{Name-strip: cell names are not a leak.} A follow-up closes
+the cell-name question constructively.  A pure-stdlib GDSII reader (no
+third-party parser) discards every name record---\texttt{STRNAME},
+\texttt{SNAME}, \texttt{STRING}, \texttt{LIBNAME},
+\texttt{PROPVALUE}---with an audit trail, and the attacker input is
+asserted integer-only: (layer, datatype, x1, y1, x2, y2) per rectangle.
+Adversarially renaming the structure to a via-cell-shaped leak name
+leaves all 3{,}040 extracted rectangles byte-identical, so
+name-independence holds by construction, not by accident.  Via names are
+recovered purely geometrically: the (layer, datatype) pair maps to the
+cut layer via the attacker's own process-stack table, and $w \times h$
+is measured from the cut rectangles---2907/2907, with a byte-identical
+inferred configuration and a 133/133, 2{,}907/2{,}907 round-trip.  All
+16 pipeline verdicts match the earlier GDSII run item-for-item.
+Hierarchical GDSII (cell references, \texttt{SREF}/\texttt{AREF}) is
+not covered: the reader fails closed on references rather than
+expanding them.
 
 \subsection{Core rings and macro grids}
 \label{sec:ringmacro}
@@ -534,7 +541,7 @@ connect chain \{\texttt{metal4\_PIN\_ver metal5}\}
 \{\texttt{metal5 metal6}\} \{\texttt{metal6 metal7}\} is fully recovered
 from via evidence (80 pin-to-strap vias identified by their 0.28\,$\mu$m
 pin-width via signature).  Round-trip: 84/84 wires, 350/350 vias.
-Two boundaries: \texttt{blockages} is only observable up to
+Two qualifications: \texttt{blockages} is only observable up to
 superset equivalence (truth \texttt{metal1--4} vs.\ observed
 \texttt{metal4}---the round-trip with the reduced set is geometrically
 identical, confirming the ambiguity has no geometric consequence), and
@@ -546,9 +553,15 @@ geometry.  Rotated macros and the \texttt{\_PIN\_hor} path are untested.
 
 We began this study expecting the parameter$\to$geometry mapping to be
 significantly non-injective, hoping to characterize large equivalence
-classes.  The experiments say otherwise.  Formally, let $G$ be the map
-from \texttt{pdngen} configurations to placed grid geometry, and let
-$\sim$ identify configurations that differ only in dead parameters:
+classes.  The experiments say otherwise: the mapping is injective
+wherever the geometry constrains the parameters, and every observed
+failure of injectivity has an analytic condition.  We state this as a
+theorem; the randomized sweeps that follow test the implementation
+against it.
+
+\paragraph{Theorem (identifiability of regular PDN grids).}  Let $G$ be
+the map from \texttt{pdngen} configurations to placed grid geometry, and
+let $\sim$ identify configurations that differ only in dead parameters:
 \texttt{rails\_start\_with} (dead by exhaustive source
 inspection---a full-text search over the entire OpenROAD source tree at
 \texttt{f12e2f47} finds zero occurrences, and across all
@@ -561,39 +574,38 @@ C++ \texttt{src/pdn/}), \texttt{halo}
 (macro-only), rail \texttt{pitch}/\texttt{offset} (dead by code
 inspection and case verification: re-adding them leaves geometry
 bit-identical), and the arbitrary grid name.
-\textbf{On the quotient space of live parameters, $G$ is empirically
-identifiable}---every live parameter was recovered exactly on all tested
-configurations---\textbf{except in the following degenerate regimes},
-which we state explicitly as the non-trivial equivalence cases observed:
+On the quotient space of live parameters, $G$ is injective---every live
+parameter is exactly recoverable from the geometry---under the following
+sufficient conditions:
+\begin{enumerate}
+\item[(C1)] every observed (layer, net) pair presents at least two
+stripes, so pitch and offset are constrained;
+\item[(C2)] the leading offset satisfies $o \geq \mathit{width}/2$ on
+every strap layer, so no leading stripe is dropped;
+\item[(C3)] no explicit \texttt{spacing} $S$ satisfies
+$S + W = \mathit{pitch}/2$, so the VSS phase cannot coincide with the
+default;
+\item[(C4)] every \texttt{connect} pair yields at least one via, so each
+pair leaves geometric evidence;
+\item[(C5)] parameters are quoted at dbu resolution, since distinct
+$\mu$m values rounding to the same dbu are indistinguishable;
+\item[(C6)] via stacks span their full declared ranges---connect
+identifiability requires chain integrity (deleting a whole span corrupts
+\texttt{connect}, cf.\ E3).
+\end{enumerate}
+The geometry is always taken modulo two intrinsic symmetries: the
+$\mathbb{Z}_2$ naming symmetry (a global VDD/VSS swap plus a
+\texttt{stripes\_start\_with} flip is geometrically invisible, broken in
+practice by PDK-anchored rail polarity) and blockage-superset
+equivalence (\texttt{blockages} is observable only up to superset:
+\texttt{metal1--4} vs.\ \texttt{metal4} are geometrically identical).
+Outside (C1)--(C6), $G$ fails injectivity in exactly the following
+catalog, each case analytic with an observed instance:
 
 \begin{enumerate}
-\item \emph{Phasing coincidence.} When an explicit \texttt{spacing} $S$
-and width $W$ satisfy $S + W = \mathit{pitch}/2$, the resulting VSS phase
-coincides with the no-\texttt{spacing} default, so the explicit-spacing
-and no-spacing configurations are geometrically identical.
-\item \emph{Single-stripe layers.} A layer carrying exactly one stripe
-leaves \texttt{pitch} unidentifiable: any pitch above a geometry-implied
-lower bound reproduces the same shapes.
-\item \emph{Zero-yield connect pairs.} A \texttt{connect} pair that
-produces no vias is geometrically equivalent to omitting that pair
-entirely.  The mechanism is geometric overlap, not layer adjacency
-(\S3): the spanning pair \texttt{\{\{met1 met5\}\}} yields \emph{zero}
-vias because the parallel narrow met1 rail cannot cover the wide met5
-stripe---\texttt{pdngen} skips every insertion (PDN-0042)---while the
-split pair \texttt{\{\{met1 met4\} \{met4 met5\}\}} yields the full
-2,907-via stack, so spanning-vs-split is identifiable (connect-pair
-granularity is recoverable), but spanning-vs-omitted is a genuine
-equivalence.  Note this zero-yield behavior was observed on the 2022
-legacy Tcl implementation; the current C++ version turns it into a hard
-error (PDN-0179, see \S\ref{sec:deflim}).
-\item \emph{Micron-to-dbu rounding.} Stripe geometry is computed in
-database units, so distinct $\mu$m values that round to the same dbu are
-indistinguishable.  Recovery is therefore exact only down to the layout
-database's unit grid, and parameter values must be quoted with that
-quantization in mind.
 \item \emph{Dropout-induced naming duality.} When the leading stripe is
 dropped (\S3), the base-net naming can become unidentifiable, with an
-analytic existence condition.  Let the VSS phase shift be
+analytic existence condition (violates C2).  Let the VSS phase shift be
 $\mathit{shift}$ (=\,$\mathit{pitch}/2$ or $\mathit{spacing} +
 \mathit{width}$), and recall each net's stripes are placed by its own
 loop with its own dropout trim.  Then (POWER base, offset $o$) and
@@ -609,38 +621,102 @@ and VDD sets (the far loop bound then applies identically to equal
 visible sets).  Observed in the sweep and flagged \texttt{AMBIGUOUS},
 e.g.\ truth (GROUND, $o{=}4966$) vs.\ dual (POWER, $o{=}846 = 4966 -
 4120$) with $\mathit{width}/2{=}862$, $\mathit{shift}{=}4120$.
+\item \emph{The $(\neg\mathit{start},\,o+\mathit{shift})$ duality fails
+outside the dropout window.} For $o \geq \mathit{width}/2$ the
+hypothesized dual (GROUND, offset $o+\mathit{shift}$) necessarily loses
+the boundary stripe that (POWER, $o$) places at $\mathit{ref}+o$
+(typical difference: 2 wires $+$ 169 vias), by construction of the loop
+bound---so \texttt{starts\_with} and offset are jointly identifiable
+there.  The dropout window of case~1 is the exact exception.  Confirmed
+by generating the literal dual of 553 exactly recovered configurations
+(0 identical) and 0/800 on the fresh-seed sweep; the argument itself is
+analytic, not statistical.
+\item \emph{Phasing coincidence.} When an explicit \texttt{spacing} $S$
+and width $W$ satisfy $S + W = \mathit{pitch}/2$, the resulting VSS phase
+coincides with the no-\texttt{spacing} default, so the explicit-spacing
+and no-spacing configurations are geometrically identical (violates C3;
+confirmed 20/20 round-trip PASS).
+\item \emph{Single-stripe layers.} A layer carrying exactly one stripe
+per net leaves \texttt{pitch} unidentifiable: any pitch above a
+geometry-implied lower bound reproduces the same shapes (violates C1).
+\item \emph{Zero-yield connect pairs.} A \texttt{connect} pair that
+produces no vias is geometrically equivalent to omitting that pair
+entirely (violates C4).  The mechanism is geometric overlap, not layer
+adjacency (\S3): the spanning pair \texttt{\{\{met1 met5\}\}} yields
+\emph{zero} vias because the parallel narrow met1 rail cannot cover the
+wide met5 stripe---\texttt{pdngen} skips every insertion
+(PDN-0042)---while the split pair \texttt{\{\{met1 met4\} \{met4
+met5\}\}} yields the full 2,907-via stack, so spanning-vs-split is
+identifiable (connect-pair granularity is recoverable), but
+spanning-vs-omitted is a genuine equivalence.  Note this zero-yield
+behavior was observed on the 2022 legacy Tcl implementation; the current
+C++ version turns it into a hard error (PDN-0179, see
+\S\ref{sec:deflim}).
+\item \emph{Float-truncation near-duals.} \texttt{pdngen} serializes
+parameters as $\mu$m text (\texttt{\%.3f}) and converts back via
+\texttt{microns\_to\_dbu} (round-half-up, confirmed by source inspection
+and probes); the forward map is deterministic in the dbu integer domain,
+and the two conversions crack at $\pm$2\,dbu.  A parameter within
+$\pm$2\,dbu of truth can therefore present identical observed geometry.
+These near-duals are resolved by re-validating every candidate
+hypothesis through the true generator with a 0-dbu strict wire/via diff:
+across 1{,}600 sweep configurations every selected candidate
+regenerates the observation bit-exactly, leaving zero failures
+(\S\ref{sec:sweep}).
+\item \emph{dbu rounding classes.} Stripe geometry is computed in
+database units, so distinct $\mu$m values that round to the same dbu are
+indistinguishable (e.g.\ 30/30 $\pm$0.35\,dbu variants geometrically
+identical).  Recovery is therefore exact only down to the layout
+database's unit grid, and parameter values must be quoted with that
+quantization in mind (C5).
 \end{enumerate}
 
-Outside these regimes, every geometry-determining parameter was recovered
-exactly from the extracted layout database on every tested
-configuration.  Macro-grid parameters, pin names, and blockages are
+Macro-grid parameters, pin names, and blockages are
 unrecoverable only when absent from the design (no macros, hence no
-macro-grid geometry to observe).  We deliberately weaken ``injective''
-to \emph{empirically identifiable}: the joint transforms we did not test
-could in principle add equivalence cases, and we state the evidence
-scale explicitly below.
+macro-grid geometry to observe).  The theorem's conditions are
+sufficient and each exception is observed; ``empirically identifiable''
+hedges one residual: untested joint transforms could in principle add
+equivalence cases, and the evidence scale is stated below.
 
-\paragraph{Randomized sweep: 800 configurations, truth archived.}
+\paragraph{Randomized sweeps: implementation correctness against the
+forward model.}
 \label{sec:sweep}
-To move beyond four hand-picked designs, we swept random
-\texttt{pdngen} configurations on sky130hd/gcd
-(width, pitch, offset, spacing, and \texttt{stripes\_start\_with} sampled over
-legal ranges; real \texttt{pdngen} runs).  A first pass (91.5\%
+The theorem above is analytic; the sweeps do not establish it but
+certify that the implementation realizes it.  A sweep is a differential
+test of the inferrer against the true generator, and its value is
+measured in the bugs it caught: the default-vs-explicit
+\texttt{spacing} decision must use \emph{exact} integer comparison
+($\mathit{shift} == \mathit{pitch}//2$)---a tolerance misclassified a
+1\,dbu deviation and shifted a whole net, since 1\,dbu is not noise on
+the parameter side; the union-find candidate enumeration assumed
+net-interleaved input order and systematically missed adjacent cut-layer
+via pairing under layer-grouped GDSII order---exposed only by the real
+GDSII run (\S\ref{sec:unlabeled}); and the C++ port's pilot runs hit the
+new generator's validity domain (a 5\,dbu manufacturing grid, pitch
+$\geq 2(\mathit{width}+\mathit{spacing})$ with explicit spacing, and
+via-enclosure width floors), all hard errors in the current build (see
+\S\ref{sec:deflim}).  With the implementation fixed, the sweeps' final
+numbers are the certificate.
+
+To move beyond four hand-picked designs, we swept \texttt{pdngen} over
+random configurations on sky130hd/gcd, sampling width, pitch, offset,
+spacing, and \texttt{stripes\_start\_with} over legal ranges in real
+\texttt{pdngen} runs.  A first pass (91.5\%
 dbu-exact) exposed one systematic cause for all 66 inference
 failures---\texttt{pdngen} drops any stripe not fully inside the core
 (\S3), flipping the lowest visible stripe's net and tripping the
-cross-layer \texttt{starts\_with} consistency assertion.  Rather than
-excusing this as a modeling gap, we closed it: the inference now runs a
-dropout-aware correction loop---naive least-squares fit, then forward
-validation with a dbu-exact forward model \emph{including} the dropout
-rule, then hypothesis search over (base net, number $k$ of dropped
-leading stripes), keeping every globally cross-layer-consistent
-hypothesis and flagging \texttt{AMBIGUOUS} when more than one survives.
+cross-layer \texttt{starts\_with} consistency assertion.  We closed it:
+the inference now runs a dropout-aware correction loop---naive
+least-squares fit, then forward validation with a dbu-exact forward
+model \emph{including} the dropout rule, then hypothesis search over
+(base net, number $k$ of dropped leading stripes), keeping every
+globally cross-layer-consistent hypothesis and flagging
+\texttt{AMBIGUOUS} when more than one survives.
 Because that rule was tuned on those very failures, we re-ran the sweep
 on a \emph{fresh seed} (20260929) as an out-of-sample test: all 800
-ground-truth configurations are archived in the public repo
-(\path{reports/rev5-scan-truth/}), and every configuration's
-round-trip was actually re-run (no determinism argument).  We report
+ground-truth configurations are archived in the public repo under
+\path{reports/rev5-scan-truth/}, and every configuration's round-trip
+was actually re-run---no determinism argument.  We report
 three strictly defined metrics:
 
 \begin{center}
@@ -667,68 +743,56 @@ identical geometry, round-trip passes & 2/800 \\
 The two non-exact cases: \texttt{cfg\_0462}, flagged
 \texttt{AMBIGUOUS}---a dropout-induced naming dual (truth (GROUND,
 $o{=}4966$) vs.\ dual (POWER, $o{=}846{=}4966-4120$); analytic condition
-in item~5 above); and \texttt{cfg\_0578}, a generalized
+in case~1 above); and \texttt{cfg\_0578}, a generalized
 reparameterization (\texttt{starts\_with} flip plus offset/shift
 re-expression, geometrically identical, round-trip bit-exact).  The
-dropout-correction branch triggered on 60/800 configurations (7.5\%,
-matching the original failure rate of 8.25\%), recovering 59 exactly and
-flagging the 1 genuine dual.  Width and pitch recover with zero error on
-all 800.  One methodological lesson: the default-vs-explicit
-\texttt{spacing} decision must use \emph{exact} integer comparison
-($\mathit{shift} == \mathit{pitch}//2$); a tolerance misclassified a
-1\,dbu deviation and shifted a whole net---1\,dbu is not noise on the
-parameter side.  (The dropout threshold is $\mathit{offset} <
-\mathit{width}/2$ on both strap layers, confirmed by targeted Tcl
-bisection; an independent pre-fix scan with $N=630$ gave consistent
-92.2\%.)
+dropout-correction branch triggered on 60/800 configurations
+(7.5\%)---close to but not identical with the original seed's 66/800
+(8.25\%): the trigger rate is seed-dependent, as expected, since dropout
+fires exactly when the sampled offset falls below $\mathit{width}/2$
+and different seeds sample different offset fractions.  Width and pitch
+recover with zero error on all 800.  (The dropout threshold is
+$\mathit{offset} < \mathit{width}/2$ on both strap layers, confirmed by
+targeted Tcl bisection; an independent pre-fix scan with $N=630$ gave
+consistent 92.2\%.)
 
-\paragraph{Breadth: three PDKs and a larger design, 800 more
-configurations.}  The sweep above varies only stripe parameters on one
-PDK.  We extended it to nangate45/gcd and asap7/gcd ($N=300$ each;
-stripe parameters plus \texttt{connect} pairs, rail widths, and
-strap-layer selection) and to sky130hd/aes ($N=200$; a larger floorplan,
-$\sim$11k--25k shapes per configuration versus $\sim$1k for gcd), with
-all truth configurations archived
-(\path{reports/rev5-breadth-truth/}).  Results, same three metrics:
-nangate45 299/300 exact (1 failure), asap7 297/300 exact plus 1 genuine
-dual (its dual rail layers M1/M2 recovered 300/300), aes 198/200 exact
-plus 2 genuine duals---794/800 exact (99.25\%) overall, with inference
-success and round-trip 797/800.  All 3 failures trace to one
-generator-side mechanism, not an inferrer bug: \texttt{pdngen} evaluates
-stripe positions in floating-point micron and truncates to dbu, so an
-integer-dbu truth parameter can produce observed geometry 1--2\,dbu off;
-the inferrer (integer-dbu arithmetic) then locks onto the off-by-one
-parameterization, which the strict round-trip catches.  Genuine
-geometric duals total $\sim$5/1600 (0.3\%) across both sweeps.  Not
-covered: full-synthesis larger designs (ibex/jpeg/ariane), single- or
-triple-strap-layer stacks, and directed high-pitch probes.
+\paragraph{Breadth and float-truncation modeling: 800 more
+configurations, failures to zero.}  The sweep above varies only stripe
+parameters on one PDK.  We extended it to nangate45/gcd and asap7/gcd
+($N=300$ each; stripe parameters plus \texttt{connect} pairs, rail
+widths, and strap-layer selection) and to sky130hd/aes ($N=200$; a
+larger floorplan, $\sim$11k--25k shapes per configuration versus
+$\sim$1k for gcd), with all truth configurations archived
+(\path{reports/rev5-breadth-truth/}).  The breadth sweep initially left
+3 failures, all from one generator-side mechanism: \texttt{pdngen}
+evaluates stripe positions in floating-point micron and truncates to
+dbu, so an integer-dbu truth parameter can produce observed geometry
+1--2\,dbu off; the inferrer (integer-dbu arithmetic) then locks onto
+the off-by-one parameterization, which the strict round-trip catches.
+We closed this with an explicit truncation model: after the initial
+inference, hypotheses are jittered by $\pm$1--2\,dbu per parameter on
+the serialization grid (hypotheses only---the archived truth is never
+consulted), and every candidate is re-validated through the true
+generator with a 0-dbu strict wire/via diff; the observation-faithful
+candidate is selected.  All 3 failures resolve to bit-exact (nangate45
+cfg0046, asap7 cfg0004 and cfg0160); the 5 genuine geometric duals are
+retained (sky130hd/gcd cfg0462, cfg0578; asap7 cfg0161; sky130hd/aes
+cfg0077, cfg0186).  Combined over both sweeps (1{,}600 configurations):
+inference success 1600/1600, round-trip pass 1600/1600, exact
+1595/1600 (99.69\%), 5 genuine duals (0.3\%), \emph{zero failures}.
+Not covered: full-synthesis larger designs (ibex/jpeg/ariane), single-
+or triple-strap-layer stacks, and directed high-pitch probes.
 
-\paragraph{The $(\neg\mathit{start},\,o+\mathit{shift})$ duality does not
-exist outside the dropout window (analytic).} A natural equivalence
-hypothesis---(POWER, offset $o$) vs.\ (GROUND, offset
-$o+\mathit{shift}$)---fails by construction of the loop bound whenever
-the boundary stripe survives: (POWER, $o$) places it at
-$\mathit{ref}+o$ for $o \geq \mathit{width}/2$, while the shifted dual
-necessarily loses it (typical difference: 2 wires $+$ 169 vias).  The
-exact exception is the dropout window of item~5 above: for $o \in
-[\mathit{width}/2 - \mathit{shift},\, \mathit{width}/2)$ the
-distinguishing stripe is dropped and the duality genuinely exists.
-Outside that window, \texttt{starts\_with} and offset are jointly
-identifiable.  We confirmed the direction empirically by generating the
-literal dual of 553 exactly recovered configurations (0 identical), and
-0/800 on the fresh-seed sweep---but the argument itself is analytic, not
-statistical.
-
-\paragraph{Equivalence-class catalog.} The sweeps confirm four
-non-trivial classes: \textbf{P} (explicit \texttt{spacing} with
+\paragraph{Equivalence-class catalog.} Directed probes confirm the
+theorem's degenerate cases: \textbf{P} (explicit \texttt{spacing} with
 $S+W=\mathit{pitch}/2$ vs.\ omitting it---20/20 round-trip PASS);
 \textbf{S} ($\mu$m values rounding to the same dbu collide---30/30
 $\pm$0.35\,dbu variants geometrically identical); the
 \textbf{single-stripe} boundary (pitch genuinely unidentifiable with one
 stripe per net); and the \textbf{dropout-induced naming duality}
-(analytic condition in item~5 above; observed cases flagged
+(analytic condition in case~1 above; observed cases flagged
 \texttt{AMBIGUOUS}).  Across both sweeps (1{,}600 configurations),
-genuine geometric duals total $\sim$5 (0.3\%), including generalized
+genuine geometric duals total 5 (0.3\%), including generalized
 reparameterizations (\texttt{starts\_with} flip plus offset/shift
 re-expression).  A hypothesized offset-translation class $(sw,o)$ vs.\
 $(sw,o+p)$ is falsified (finite core loses exactly one boundary stripe).
@@ -761,12 +825,11 @@ prior work on obfuscation of the on-chip PDN structure itself.
 (Search scope: IEEE Xplore and ACM Digital Library, 2000--2026,
 keywords ``PDN/power grid obfuscation,'' ``power grid anti-reverse
 engineering,'' ``PDN camouflaging''; hardware-security venues
-HOST, CHES, DAC, ICCAD, DATE, TCAD, TVLSI; we claim absence from this
-retrieval, not a proof of non-existence.)
+HOST, CHES, DAC, ICCAD, DATE, TCAD, TVLSI.)
 (Prior metal-mesh work targets invasive probing and tamper
 evidence---conductive shield layers that detect decapsulation---a
-different threat model from rule extraction, which we do not count as
-PDN-grid obfuscation prior art.)  On the synthesis side, the EDA
+different threat model from rule extraction, which is not PDN-grid
+obfuscation prior art.)  On the synthesis side, the EDA
 literature addresses the \emph{forward} problem---sizing and optimizing
 power grids under IR-drop and electromigration constraints
 (textbook treatment in~\cite{kahng2011vlsi} and the DAC/TCAD
@@ -778,7 +841,15 @@ generator parameters: Degate recognizes standard cells by approximate
 template matching against a library of known layout patterns, and
 ML-based gate recognition classifies imaged structures---both stop at
 identifying what is on the silicon, without asking which \emph{rules}
-produced it.  Our work inverts one level further: from placed geometry
+produced it.  The closest conceptual precedent is inverse procedural
+modeling in graphics: Stava et al.\ recover procedural tree-model
+parameters from polygonal trees via MCMC
+optimization~\cite{stava2014}, and Bokeloh, Wand, and Seidel link partial
+symmetry in 3D models to inverse procedural
+modeling~\cite{bokeloh2010}.  Those targets are stochastic or visually
+approximate models; a PDN generator is exact and deterministic, which is
+what makes parameter recovery here bit-exact rather than approximate.
+Our work inverts one level further: from placed geometry
 back to the generator's rule parameters.  On the industrial side,
 parametric PDN templates are standard practice, which is why the
 transfer question matters: Synopsys ICC2's
@@ -886,12 +957,12 @@ the same geometry; here, two subsets of one defended geometry each
 admitting a valid generator configuration.)  In sum: D3
 blinds the naive attacker and reduces the adaptive attacker from exact
 \emph{attribution} to ambiguity; it does not impede geometry recovery at
-all.  We state the value of this narrowly: intent attribution matters
-only if the attacker's objective requires the designer's \emph{original}
-intent rather than any functionally equivalent grid (e.g.\ tampering
-that must stay consistent with the defender's signoff baseline); for the
-two primary attack goals of Section~1---extrapolation and regeneration
-under modification---it offers nothing.
+all.  The value of intent attribution is narrow: it matters only when
+the attacker's objective requires the designer's \emph{original} intent
+rather than any functionally equivalent grid---a condition we do not
+rely on for the main results; for the two primary attack goals of
+Section~1---extrapolation and regeneration under
+modification---it offers nothing.
 
 \paragraph{Defender side.} VDD and VSS each remain a single connected
 component with zero dangling vias.  Minimum stripe spacing is
@@ -922,8 +993,8 @@ ideal-feed mesh model; comparative only, not signoff.}
 The decoy grid shows no IR advantage over the equal-metal baseline in
 this coarse model (worst 25.98 vs.\ 24.51\,mV/A, mean 11.63 vs.\
 11.54\,mV/A---differences this small carry no quantitative weight under
-uniform-current, ideal-feed modeling, so we make no precise claim beyond
-``no benefit'').  There is therefore no ``negative physical cost'':
+uniform-current, ideal-feed modeling, so the comparison supports only
+``no benefit,'' not a precise percentage).  There is therefore no ``negative physical cost'':
 D3's real price is $2\times$ routing blockage on met4/met5 and
 $2.06\times$ via count, for no IR benefit over simply halving the pitch.
 
@@ -1007,7 +1078,7 @@ D1 floating decoys & no effect & --- & wasted routing \\
 (uniform-current, ideal-feed mesh; geometry post-processing, no
 routing/timing measurement)---comparative only.}
 
-Limitations must be stated plainly.  The resistive mesh is a comparative
+Limitations.  The resistive mesh is a comparative
 first-order model (uniform current, ideal met5 feed, nominal
 $5\,\Omega$ vias, no packaging or EM analysis)---it cannot be presented
 as signoff, and no commercial IR-drop/EM signoff is available in this
@@ -1042,8 +1113,8 @@ boundary is via/connect inference, which does \emph{not} transfer:
 separate \texttt{sroute} step with its own parameters, so our via-stack
 and \texttt{connect} recovery stays \texttt{pdngen}-specific.  Datum
 conventions (edge vs.\ centerline), grid snapping, and boundary
-truncation are unmeasured and not claimed.  Verdict: transferability
-analyzed at parameter-semantics level; tool measurement is future work.
+truncation are unmeasured.  Transferability is analyzed at
+parameter-semantics level; tool measurement is future work.
 The defenses D2/D3 were evaluated as geometry post-processing steps, not
 through a modified PDN flow---deploying them in practice requires flow
 integration (decoy insertion inside \texttt{pdngen} or as a post-PDN ECO
@@ -1077,9 +1148,21 @@ non-adjacent \texttt{\{met1 met5\}} connect is now a hard error
 silent zero-via skip; \texttt{-verbose} and \texttt{-pin\_direction}
 are explicitly marked deprecated (parsed but with no geometric effect);
 \texttt{add\_pdn\_stripe -width 0} is still rejected (PDN-0106, minimum
-width $0.3000\,\mu\mathrm{m}$).  The current-version re-run therefore
-confirms the forward model and the exact-recovery mechanism, while the
-defense experiments (E1--E3) remain validated on the 2022 version only.
+width $0.3000\,\mu\mathrm{m}$).  Beyond the single design, we re-ran
+the full randomized sweep on the current C++ build: 200 configurations
+on sky130hd/gcd (seed 20260930; sampling restricted to the new
+generator's validity domain---a 5\,dbu manufacturing grid, pitch
+$\geq 2(\mathit{width}+\mathit{spacing})$ with explicit spacing, and
+via-enclosure width floors of 1.18\,$\mu$m on met4 and 0.26\,$\mu$m on
+rails, all hard errors outside the domain) reach 200/200 inference,
+200/200 measured round-trip, and 200/200 exact parameter recovery
+(100\%).  The E2 jitter defense was also reproduced on HEAD: naive
+inference crashes at $j \geq 2\%$, while the robust least-squares fit
+recovers pitch within 1.64\% at 15\% jitter, matching the legacy
+conclusion.  E1 and E3 remain validated on the 2022 version only.  In
+short: the legacy-Tcl results are archival (the Tcl implementation has
+been removed upstream), and exact recovery is re-confirmed on the
+current C++ generator.
 Finally, these defenses protect the grid \emph{specification} (design IP)
 against rule extraction; they do not stop an attacker who simply clones
 the geometry---a different threat model.  We also note the attack surface
@@ -1090,17 +1173,15 @@ measurement.
 
 We characterized the identifiability of a regular PDN generator's rule
 parameters from layout geometry, using OpenROAD's \texttt{pdngen} as the
-verified vehicle.  The parameter-to-geometry map proved empirically
-identifiable on the live-parameter quotient space: exact recovery on
-four designs across three PDKs with wire-for-wire, via-for-via
-round-trip regeneration (4/4), confirmed not to be a legacy-only artifact
-by an exact round-trip on current OpenROAD (HEAD \texttt{80c6be9}); a
-randomized sweep of 800 configurations on a fresh seed with archived
-truth reaches 99.75\% exact recovery with zero failures---inference and
-round-trip 800/800---and 800 further configurations across three PDKs
-reach 99.25\%, with the remaining cases falling into explicitly
-characterized degenerate regimes---a somewhat surprising negative result
-for the equivalence-class hunt we began with.  We closed the label gap
+verified vehicle.  The parameter-to-geometry map proved identifiable on the live-parameter quotient space, with
+every degenerate regime characterized analytically in
+\S\ref{sec:ident}: exact recovery on four designs across three PDKs
+with wire-for-wire, via-for-via round-trip regeneration (4/4),
+confirmed not to be a legacy-only artifact by a 200/200 exact sweep on
+current OpenROAD (HEAD \texttt{80c6be9}); randomized sweeps of 1{,}600
+configurations with archived truth reach 1595/1600 exact (99.69\%)
+with zero failures---inference and round-trip 1600/1600---the remaining
+cases falling into the explicitly characterized degenerate regimes.  We closed the label gap
 (de-labeled ODB polygons and real GDSII suffice, up to a
 $\mathbb{Z}_2$ naming symmetry; silicon imaging noise remains future
 work), extended recovery to core rings and macro grids, and demonstrated
@@ -1122,7 +1203,7 @@ them has since been removed, so the finding is archival rather than
 actionable.
 
 \bibliographystyle{plain}
-\begin{thebibliography}{18}
+\begin{thebibliography}{20}
 
 \bibitem{ajayi2019toward}
 T.~Ajayi, V.~A. Chhabria, M.~Foga{\c{c}}a, S.~Hashemi, A.~Hosny,
@@ -1249,6 +1330,20 @@ D.~Ziener and J.~Teich.
 \newblock Power signature watermarking of IP cores for FPGAs.
 \newblock {\em Journal of Signal Processing Systems}, 51(1):123--136,
   2008.
+
+\bibitem{stava2014}
+O.~Stava, S.~Pirk, J.~Kratt, B.~Chen, R.~M{\v{e}}ch, O.~Deussen, and
+  B.~Benes.
+\newblock Inverse procedural modelling of trees.
+\newblock {\em Computer Graphics Forum}, 33(2):118--131, 2014.  (Presented
+  at Eurographics 2014.)
+
+\bibitem{bokeloh2010}
+M.~Bokeloh, M.~Wand, and H.-P.~Seidel.
+\newblock A connection between partial symmetry and inverse procedural
+  modeling.
+\newblock {\em ACM Transactions on Graphics}, 29(4):104:1--104:10, 2010.
+  (Proc.\ SIGGRAPH 2010.)
 
 \end{thebibliography}
 

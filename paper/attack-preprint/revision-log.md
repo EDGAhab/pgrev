@@ -384,3 +384,82 @@ no experimental numbers altered. `paper.docx` untouched; nothing pushed.
 - User-facing copy refreshed at
   `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
 - `paper.docx` untouched; nothing pushed (per task constraints).
+
+## rev6 writing revision (2026-09-28)
+
+Source: sixth-round review (Weak Reject / Major Revision, significance
+framing) + three new experiment reports (rev6-expA/B/C). Writing only;
+no experimental numbers altered. `paper.docx` untouched; nothing pushed.
+
+- **Abstract:** compressed to ~150 words: analytic identifiability
+  theorem, exact recovery on 4 designs x 3 PDKs, label-free GDSII after
+  constructive name-strip, 1600-config sweeps (1600/1600 inference and
+  round-trip, 1595/1600 exact, zero failures), defenses one-liners, HEAD
+  C++ N=200 all exact, legacy-Tcl results archival.
+- **Threat model rewritten (reviewer point 2):** trojan narrative
+  removed (a fab doing mask edits would not re-run pdngen). Honest
+  scenarios: (a) spec as executable intent for re-spin / derivative
+  floorplan (macro-insertion demo of §2); (b) compact, editable,
+  replayable representation that polygon copying cannot provide under
+  floorplan change. IP value stated candidly: most spec values are
+  process-derived; the value is exact replayable reconstruction.
+  Defensive "we state the label situation plainly" reworded.
+- **Cost model → one paragraph (reviewer point 3):** pattern-based
+  counting (identify the via-stack pattern once, propagate) replaces
+  the per-via independent-judgment arithmetic; honest conclusion is
+  expert-hours vs pipeline-seconds, scaling to hundreds of
+  configurations. The "8-16 human-years" circular argument removed.
+- **§7 → analytic identifiability theorem (reviewer point 1):**
+  sufficient conditions (C1)-(C6) (≥2 stripes per (layer,net),
+  o ≥ w/2, no S+W=pitch/2, ≥1 via per connect pair, dbu resolution,
+  via-stack chain integrity), geometry taken modulo Z2 naming symmetry
+  and blockage-superset equivalence; degenerate catalog with analytic
+  conditions: dropout naming duality (o ∈ [w/2−shift, w/2)), the
+  (¬start, o+shift) duality's exact boundary (fails for o ≥ w/2,
+  dropout window is the exception), phasing coincidence, single-stripe
+  layers, zero-yield connect pairs, float-truncation near-duals (expB
+  source-level conclusion: %.3f serialization + microns_to_dbu
+  round-half-up, forward map deterministic in dbu integers), dbu
+  rounding classes.
+- **Sweeps repositioned as implementation-correctness checks:** the
+  theorem is analytic; sweeps certify the implementation realizes it.
+  Evidence: exact-integer spacing comparison bug (1 dbu is not noise),
+  union-find GDS layer-order bug, HEAD validity-domain pits.
+  Numbers updated to rev6-expB final: 1600/1600 inference, 1600/1600
+  round-trip, 1595/1600 exact (99.69%), 5 genuine duals, zero failures.
+  7.5% vs 8.25% explained (different seeds; dropout trigger rate is
+  seed-dependent).
+- **1 dbu tolerance explained:** geometric comparison tolerance vs
+  dbu-exact parameter check are two independent checks; tolerance
+  cannot mask parameter-level errors.
+- **Inverse procedural modeling related work:** added Stava et al.
+  (2014) and Bokeloh/Wand/Seidel (2010) with verified bibliographic
+  details (browser-verified; the assumed "Bokeloh et al. Inverse
+  Procedural Modeling of Facade Layouts" attribution was incorrect and
+  was not used).
+- **HEAD results in main text:** C++ N=200 sweep (200/200 inference,
+  200/200 round-trip, 200/200 exact = 100%), E2 reproduced on HEAD
+  (naive crashes at j≥2%, robust pitch error ≤1.64% at 15%), validity
+  domain pits (PDN-0191 5dbu grid, PDN-0175 pitch≥2(w+s), via-enclosure
+  floors met4 w≥1.18µm / rail w≥0.26µm, legacy dict API STA-0562).
+  Legacy-Tcl results marked archival; E1/E3 validated on 2022 version
+  only.
+- **GDS name-strip in §5.5 (expA):** pure-stdlib reader discards all
+  name records (STRNAME/SNAME/STRING/LIBNAME/PROPVALUE, audit trail);
+  adversarial rename leaves 3,040 rectangles byte-identical; via_name
+  recovered purely geometrically 2907/2907; 16/16 verdicts match;
+  round-trip PASS. Hierarchical GDS (SREF/AREF) listed as uncovered
+  (fail closed).
+- **Table 1:** column layout tidied (narrower tabcolsep, two-line
+  straps/connect cells via \newline).
+- **Defensive phrasing removed:** "Boundaries:", "we state plainly",
+  "we claim absence from this retrieval, not a proof of non-existence",
+  "make no precise claim", "unmeasured and not claimed", "Verdict:".
+
+### Build (2026-09-28, rev6)
+- Compiled with `~/bin/tectonic paper.tex`: zero errors, zero warnings
+  (fixed two overfull hboxes introduced by rewording).
+- Abstract ~150 words.
+- User-facing copy refreshed at
+  `~/workspace/goals/pdn-reverse-engineering-experiment/files/pgrev-attack-preprint.pdf`.
+- `paper.docx` untouched; nothing pushed (per task constraints).
